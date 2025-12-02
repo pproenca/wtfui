@@ -90,6 +90,7 @@ def _layout_children(node: LayoutNode) -> None:
         container_main=container_main,
         wrap=style.flex_wrap,
         gap=gap,
+        direction=direction,
     )
 
     # Resolve flexible lengths for each line
@@ -156,5 +157,9 @@ def _layout_children(node: LayoutNode) -> None:
                 _layout_children(item)
 
         # Move cross offset for next line (for wrap)
-        row_gap = style.row_gap if style.row_gap is not None else style.gap
-        cross_offset += line.cross_size + (row_gap if is_row else 0)
+        # Row direction uses row_gap between lines, column uses column_gap
+        if is_row:
+            cross_gap = style.row_gap if style.row_gap is not None else style.gap
+        else:
+            cross_gap = style.column_gap if style.column_gap is not None else style.gap
+        cross_offset += line.cross_size + cross_gap
