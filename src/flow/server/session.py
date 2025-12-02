@@ -4,11 +4,13 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from typing import TYPE_CHECKING, Any
 
 from flow.renderer import HTMLRenderer, Renderer
+from flow.runtime.registry import ElementRegistry
 
 if TYPE_CHECKING:
     from flow.element import Element
@@ -17,9 +19,11 @@ if TYPE_CHECKING:
 # In Python 3.14+, this truly runs in parallel
 _diff_executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="flow-diff")
 
-# Minimal client-side JS for receiving patches
+# Client-side JS for event delegation and patch receiving
 CLIENT_JS = """
 const socket = new WebSocket(`ws://${location.host}/ws`);
+
+// Handle incoming patches
 socket.onmessage = (event) => {
     const patch = JSON.parse(event.data);
     if (patch.op === 'replace') {
@@ -27,6 +31,41 @@ socket.onmessage = (event) => {
         if (el) el.outerHTML = patch.html;
     }
 };
+
+// Event delegation - send events to server
+document.addEventListener('click', (e) => {
+    const target = e.target.closest('[id^="flow-"]');
+    if (target && socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({
+            type: 'click',
+            target_id: target.id
+        }));
+    }
+});
+
+// Input change events
+document.addEventListener('change', (e) => {
+    const target = e.target.closest('[id^="flow-"]');
+    if (target && socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({
+            type: 'change',
+            target_id: target.id,
+            value: target.value
+        }));
+    }
+});
+
+// Input events for live binding
+document.addEventListener('input', (e) => {
+    const target = e.target.closest('[id^="flow-"]');
+    if (target && socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({
+            type: 'input',
+            target_id: target.id,
+            value: target.value
+        }));
+    }
+});
 """
 
 
@@ -52,6 +91,10 @@ class LiveSession:
         self.queue: asyncio.Queue[Element] = asyncio.Queue()
         self._running = False
         self._lock = threading.Lock()
+
+        # Element registry for event routing
+        self._registry = ElementRegistry()
+        self._registry.register_tree(root_component)
 
     def queue_update(self, node: Element) -> None:
         """Queue a node for re-rendering and sending to client."""
@@ -129,12 +172,33 @@ class LiveSession:
                 break
 
     async def _handle_event(self, data: dict[str, Any]) -> None:
-        """Route an event to the appropriate handler."""
-        # In full implementation, this would:
-        # 1. Find the target node by ID
-        # 2. Call the appropriate handler (on_click, etc.)
-        # 3. Any Signal changes would trigger queue_update
-        pass
+        """Route browser event to appropriate Python handler."""
+        event_type = data.get("type", "")
+        target_id_str = data.get("target_id", "")
+
+        # Parse element ID from "flow-12345" format
+        if not target_id_str.startswith("flow-"):
+            return
+
+        try:
+            element_id = int(target_id_str[5:])  # Remove "flow-" prefix
+        except ValueError:
+            return
+
+        # Find handler in registry
+        handler = self._registry.get_handler(element_id, event_type)
+        if handler is None:
+            return
+
+        # Execute handler
+        # Handle both sync and async handlers
+        if inspect.iscoroutinefunction(handler):
+            await handler()
+        else:
+            handler()
+
+        # After handler executes, signal changes may have occurred
+        # Those would trigger re-renders via Effect system
 
     def stop(self) -> None:
         """Stop the session loops (thread-safe)."""

@@ -8,7 +8,23 @@ from typing import TYPE_CHECKING, Any, ClassVar
 from flow.renderer.protocol import Renderer, RenderNode
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from flow.element import Element
+
+# Map of Python event prop names to DOM event names
+EVENT_MAP: dict[str, str] = {
+    "on_click": "click",
+    "on_change": "change",
+    "on_input": "input",
+    "on_submit": "submit",
+    "on_focus": "focus",
+    "on_blur": "blur",
+    "on_keydown": "keydown",
+    "on_keyup": "keyup",
+    "on_mouseover": "mouseover",
+    "on_mouseout": "mouseout",
+}
 
 
 class DOMRenderer(Renderer):
@@ -30,9 +46,15 @@ class DOMRenderer(Renderer):
         "Window": "div",
     }
 
-    def __init__(self, document: Any) -> None:
-        """Initialize with a document object (js.document in Wasm)."""
+    def __init__(self, document: Any, proxy_factory: Callable[..., Any] | None = None) -> None:
+        """Initialize with a document object (js.document in Wasm).
+
+        Args:
+            document: The DOM document object (js.document in Pyodide)
+            proxy_factory: Function to wrap Python callables for JS (pyodide.ffi.create_proxy)
+        """
         self.document = document
+        self._proxy_factory = proxy_factory or (lambda x: x)  # Identity if no proxy needed
 
     def render(self, element: Element) -> Any:
         """Render an element tree to DOM nodes."""
@@ -47,13 +69,13 @@ class DOMRenderer(Renderer):
         el = self.document.createElement(html_tag)
         el.id = f"flow-{node.element_id}"
 
-        # Set attributes
+        # Set attributes and bind events
         for key, value in node.props.items():
             if key == "cls":
                 el.className = value
-            elif key.startswith("on_"):
-                # Event handlers would be proxied here
-                pass
+            elif key in EVENT_MAP:
+                # Bind event handler
+                self._bind_event(el, key, value)
             elif isinstance(value, bool):
                 if value:
                     el.setAttribute(key, "")
@@ -75,3 +97,23 @@ class DOMRenderer(Renderer):
     def render_text(self, content: str) -> Any:
         """Create a text node."""
         return self.document.createTextNode(content)
+
+    def _bind_event(self, el: Any, prop_name: str, handler: Callable[..., Any]) -> None:
+        """Bind Python event handler to DOM element.
+
+        Args:
+            el: The DOM element
+            prop_name: Python prop name (e.g., 'on_click')
+            handler: Python callback function
+
+        In Pyodide, the handler must be wrapped with create_proxy()
+        to prevent garbage collection and enable JS->Python calls.
+        """
+        dom_event = EVENT_MAP.get(prop_name)
+        if dom_event is None:
+            return
+
+        # Wrap handler with proxy for JS interop
+        # In tests, proxy_factory is identity; in Pyodide, it's create_proxy
+        proxied = self._proxy_factory(handler)
+        el.addEventListener(dom_event, proxied)
