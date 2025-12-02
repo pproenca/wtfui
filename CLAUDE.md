@@ -25,6 +25,11 @@ uv run pytest tests/test_signal.py  # Single test file
 uv run pytest -k "test_name"     # Run specific test
 uv run pytest --cov=src/flow     # With coverage report
 
+# Gatekeeper Tests (Performance & Security Audits)
+uv run pytest tests/gatekeepers/ -v -m gatekeeper  # Run all gatekeepers
+uv run pytest tests/gatekeepers/ --benchmark-json=results.json  # With benchmark output
+uv run pytest -m "not gatekeeper"  # Run tests excluding gatekeepers (faster iteration)
+
 # Linting/Formatting
 uv run ruff check --fix src/ tests/  # Lint with auto-fix
 uv run ruff format src/ tests/       # Format code
