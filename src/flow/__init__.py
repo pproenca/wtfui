@@ -1,3 +1,4 @@
+# src/flow/__init__.py
 """Flow - A Pythonic UI Framework using context managers and signals.
 
 A Python UI framework based on these core principles:
@@ -12,5 +13,14 @@ A Python UI framework based on these core principles:
 Requires Python 3.14+ for No-GIL (PEP 703) and PEP 649 (deferred annotations).
 """
 
+from flow.effect import Effect
+from flow.element import Element
+from flow.signal import Signal
+
+__all__ = [
+    "Effect",
+    "Element",
+    "Signal",
+]
+
 __version__ = "0.1.0"
-__all__: list[str] = []
