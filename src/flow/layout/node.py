@@ -7,7 +7,10 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from flow.layout.style import FlexStyle
+    from flow.layout.types import Size
 
 
 @dataclass
@@ -59,6 +62,10 @@ class LayoutNode:
     children: list[LayoutNode] = field(default_factory=list)
     parent: LayoutNode | None = field(default=None, repr=False)
 
+    # Measure function for intrinsic content (Amendment Alpha)
+    # Nodes with measure_func are leaf nodes (text, images, etc.)
+    measure_func: Callable[..., Size] | None = field(default=None)
+
     # Computed layout (set after compute_layout)
     layout: LayoutResult = field(default_factory=LayoutResult)
 
@@ -66,7 +73,13 @@ class LayoutNode:
     _dirty: bool = field(default=True, repr=False)
 
     def add_child(self, child: LayoutNode) -> None:
-        """Add a child node to this node."""
+        """Add a child node to this node.
+
+        Raises:
+            ValueError: If this is a measured node (has measure_func).
+        """
+        if self.measure_func is not None:
+            raise ValueError("Cannot add children to a measured node")
         child.parent = self
         self.children.append(child)
         self.mark_dirty()
