@@ -4,10 +4,12 @@
 from __future__ import annotations
 
 import threading
-from typing import TYPE_CHECKING, Any, Generic, TypeVar
+from typing import TYPE_CHECKING, Generic, TypeVar
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+
+    from flow.effect import Effect
 
 T = TypeVar("T")
 
@@ -23,22 +25,40 @@ class Signal(Generic[T]):
     def __init__(self, value: T) -> None:
         self._value: T = value
         self._subscribers: set[Callable[[], None]] = set()
-        self._effects: set[Any] = set()  # Will be set[Effect] after Task 1.5
+        self._effects: set[Effect] = set()
         self._lock = threading.Lock()  # No-GIL safe
 
     @property
     def value(self) -> T:
-        """Get the current value (thread-safe read)."""
+        """Get the current value and track effect dependency (thread-safe)."""
+        from flow.effect import get_running_effect
+
         with self._lock:
+            # Track effect dependency if one is currently running
+            effect = get_running_effect()
+            if effect is not None:
+                self._effects.add(effect)
             return self._value
 
     @value.setter
     def value(self, new_value: T) -> None:
         """Set the value and notify subscribers if changed (thread-safe write)."""
+        subscribers_to_notify: list[Callable[[], None]] = []
+        effects_to_schedule: list[Effect] = []
+
         with self._lock:
             if self._value != new_value:
                 self._value = new_value
-                self._notify_locked()
+                # Copy while holding lock, notify AFTER releasing
+                subscribers_to_notify = list(self._subscribers)
+                effects_to_schedule = list(self._effects)
+
+        # Notify OUTSIDE the lock to prevent deadlock
+        for subscriber in subscribers_to_notify:
+            subscriber()
+
+        for effect in effects_to_schedule:
+            effect.schedule()
 
     def subscribe(self, callback: Callable[[], None]) -> Callable[[], None]:
         """Subscribe to value changes. Returns unsubscribe function."""
@@ -50,13 +70,6 @@ class Signal(Generic[T]):
         """Remove a subscriber (thread-safe)."""
         with self._lock:
             self._subscribers.discard(callback)
-
-    def _notify_locked(self) -> None:
-        """Notify all subscribers. Must be called with lock held."""
-        # Copy to allow subscribers to modify during iteration
-        subscribers = list(self._subscribers)
-        for subscriber in subscribers:
-            subscriber()
 
     def __repr__(self) -> str:
         with self._lock:
