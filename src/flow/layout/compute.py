@@ -12,6 +12,7 @@ from flow.layout.algorithm import (
 )
 from flow.layout.flexline import collect_flex_lines
 from flow.layout.node import LayoutResult
+from flow.layout.style import Position
 
 if TYPE_CHECKING:
     from flow.layout.node import LayoutNode
@@ -84,9 +85,18 @@ def _layout_children(node: LayoutNode) -> None:
 
     gap = style.get_gap(direction)
 
-    # Collect items into flex lines
+    # Separate flex items from absolute positioned children
+    flex_items: list[LayoutNode] = []
+    absolute_items: list[LayoutNode] = []
+    for child in node.children:
+        if child.style.position == Position.ABSOLUTE:
+            absolute_items.append(child)
+        else:
+            flex_items.append(child)
+
+    # Collect flex items into flex lines (absolute items are excluded)
     lines = collect_flex_lines(
-        items=node.children,
+        items=flex_items,
         container_main=container_main,
         wrap=style.flex_wrap,
         gap=gap,
@@ -163,3 +173,80 @@ def _layout_children(node: LayoutNode) -> None:
         else:
             cross_gap = style.column_gap if style.column_gap is not None else style.gap
         cross_offset += line.cross_size + cross_gap
+
+    # Layout absolute positioned children
+    for abs_child in absolute_items:
+        _layout_absolute_child(abs_child, node.layout.width, node.layout.height)
+
+
+def _layout_absolute_child(
+    child: LayoutNode,
+    container_width: float,
+    container_height: float,
+) -> None:
+    """Layout an absolutely positioned child.
+
+    Absolute children are positioned relative to their containing block
+    using inset properties (top, right, bottom, left).
+
+    Args:
+        child: The absolute positioned child node.
+        container_width: Width of the containing block.
+        container_height: Height of the containing block.
+    """
+    style = child.style
+
+    # Resolve insets (percentages are relative to container size)
+    top = style.top.resolve(container_height)
+    right = style.right.resolve(container_width)
+    bottom = style.bottom.resolve(container_height)
+    left = style.left.resolve(container_width)
+
+    # Resolve explicit dimensions
+    width = style.width.resolve(container_width)
+    height = style.height.resolve(container_height)
+
+    # Calculate x position
+    if left is not None:
+        x = left
+    elif right is not None and width is not None:
+        x = container_width - right - width
+    elif right is not None:
+        # Width derived from left (0) and right
+        x = 0
+    else:
+        x = 0  # Default to left edge
+
+    # Calculate y position
+    if top is not None:
+        y = top
+    elif bottom is not None and height is not None:
+        y = container_height - bottom - height
+    elif bottom is not None:
+        # Height derived from top (0) and bottom
+        y = 0
+    else:
+        y = 0  # Default to top edge
+
+    # Calculate dimensions if not explicit
+    if width is None:
+        # Stretch between left and right, or default to 0
+        width = container_width - left - right if left is not None and right is not None else 0
+
+    if height is None:
+        # Stretch between top and bottom, or default to container height
+        height = (
+            container_height - top - bottom
+            if top is not None and bottom is not None
+            else container_height
+        )
+
+    # Apply min/max constraints
+    width = _clamp_size(width, style.min_width, style.max_width, container_width)
+    height = _clamp_size(height, style.min_height, style.max_height, container_height)
+
+    child.layout = LayoutResult(x=x, y=y, width=width, height=height)
+
+    # Recursively layout children of absolute child
+    if child.children:
+        _layout_children(child)
