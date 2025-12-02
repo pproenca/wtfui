@@ -253,6 +253,30 @@ class Spacing:
         zero = Dimension.points(0)
         return cls(zero, zero, zero, zero)
 
+    def left_is_auto(self) -> bool:
+        """Check if left margin is auto."""
+        return self.left is not None and self.left.is_auto()
+
+    def right_is_auto(self) -> bool:
+        """Check if right margin is auto."""
+        return self.right is not None and self.right.is_auto()
+
+    def top_is_auto(self) -> bool:
+        """Check if top margin is auto."""
+        return self.top is not None and self.top.is_auto()
+
+    def bottom_is_auto(self) -> bool:
+        """Check if bottom margin is auto."""
+        return self.bottom is not None and self.bottom.is_auto()
+
+    def horizontal_is_auto(self) -> bool:
+        """Check if both left and right margins are auto."""
+        return self.left_is_auto() and self.right_is_auto()
+
+    def vertical_is_auto(self) -> bool:
+        """Check if both top and bottom margins are auto."""
+        return self.top_is_auto() and self.bottom_is_auto()
+
     def resolve(self, width: float, height: float) -> Edges:
         """Resolve spacing dimensions to concrete edge values.
 

@@ -118,6 +118,81 @@ class TestSpacing:
         assert resolved.left == 0  # auto resolves to 0 for spacing
 
 
+class TestSpacingAutoMargin:
+    def test_left_is_auto_when_auto(self):
+        spacing = Spacing(left=Dimension.auto())
+        assert spacing.left_is_auto()
+
+    def test_left_is_auto_when_points(self):
+        spacing = Spacing(left=Dimension.points(10))
+        assert not spacing.left_is_auto()
+
+    def test_right_is_auto_when_auto(self):
+        spacing = Spacing(right=Dimension.auto())
+        assert spacing.right_is_auto()
+
+    def test_right_is_auto_when_percent(self):
+        spacing = Spacing(right=Dimension.percent(50))
+        assert not spacing.right_is_auto()
+
+    def test_top_is_auto_when_auto(self):
+        spacing = Spacing(top=Dimension.auto())
+        assert spacing.top_is_auto()
+
+    def test_top_is_auto_when_points(self):
+        spacing = Spacing(top=Dimension.points(20))
+        assert not spacing.top_is_auto()
+
+    def test_bottom_is_auto_when_auto(self):
+        spacing = Spacing(bottom=Dimension.auto())
+        assert spacing.bottom_is_auto()
+
+    def test_bottom_is_auto_when_points(self):
+        spacing = Spacing(bottom=Dimension.points(30))
+        assert not spacing.bottom_is_auto()
+
+    def test_horizontal_is_auto_when_both_auto(self):
+        spacing = Spacing(left=Dimension.auto(), right=Dimension.auto())
+        assert spacing.horizontal_is_auto()
+
+    def test_horizontal_is_auto_when_only_left_auto(self):
+        spacing = Spacing(left=Dimension.auto(), right=Dimension.points(10))
+        assert not spacing.horizontal_is_auto()
+
+    def test_horizontal_is_auto_when_only_right_auto(self):
+        spacing = Spacing(left=Dimension.points(10), right=Dimension.auto())
+        assert not spacing.horizontal_is_auto()
+
+    def test_horizontal_is_auto_when_neither_auto(self):
+        spacing = Spacing(left=Dimension.points(10), right=Dimension.points(20))
+        assert not spacing.horizontal_is_auto()
+
+    def test_vertical_is_auto_when_both_auto(self):
+        spacing = Spacing(top=Dimension.auto(), bottom=Dimension.auto())
+        assert spacing.vertical_is_auto()
+
+    def test_vertical_is_auto_when_only_top_auto(self):
+        spacing = Spacing(top=Dimension.auto(), bottom=Dimension.points(10))
+        assert not spacing.vertical_is_auto()
+
+    def test_vertical_is_auto_when_only_bottom_auto(self):
+        spacing = Spacing(top=Dimension.points(10), bottom=Dimension.auto())
+        assert not spacing.vertical_is_auto()
+
+    def test_vertical_is_auto_when_neither_auto(self):
+        spacing = Spacing(top=Dimension.points(10), bottom=Dimension.points(20))
+        assert not spacing.vertical_is_auto()
+
+    def test_default_spacing_all_auto(self):
+        spacing = Spacing()
+        assert spacing.left_is_auto()
+        assert spacing.right_is_auto()
+        assert spacing.top_is_auto()
+        assert spacing.bottom_is_auto()
+        assert spacing.horizontal_is_auto()
+        assert spacing.vertical_is_auto()
+
+
 class TestBorder:
     def test_border_creation(self):
         border = Border(top=1, right=2, bottom=3, left=4)
