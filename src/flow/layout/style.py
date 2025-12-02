@@ -121,6 +121,33 @@ class Direction(Enum):
         return self == Direction.RTL
 
 
+class Overflow(Enum):
+    """Overflow behavior for elements."""
+
+    VISIBLE = "visible"
+    HIDDEN = "hidden"
+    SCROLL = "scroll"
+
+    def allows_overflow(self) -> bool:
+        """Check if content can overflow the bounds."""
+        return self == Overflow.VISIBLE
+
+    def is_scrollable(self) -> bool:
+        """Check if scrollbars should be shown."""
+        return self == Overflow.SCROLL
+
+
+class BoxSizing(Enum):
+    """Box sizing model (border-box or content-box)."""
+
+    BORDER_BOX = "border-box"
+    CONTENT_BOX = "content-box"
+
+    def includes_padding(self) -> bool:
+        """Check if padding is included in width/height."""
+        return self == BoxSizing.BORDER_BOX
+
+
 @dataclass(frozen=True, slots=True)
 class FlexStyle:
     """Complete flexbox style definition for a layout node.

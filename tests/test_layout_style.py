@@ -121,6 +121,58 @@ class TestDirection:
         assert not Direction.INHERIT.is_rtl()
 
 
+class TestOverflow:
+    def test_overflow_visible_default(self):
+        """Visible is the default overflow mode."""
+        from flow.layout.style import Overflow
+
+        assert Overflow.VISIBLE.value == "visible"
+        assert Overflow.VISIBLE.allows_overflow()
+
+    def test_overflow_hidden(self):
+        """Hidden clips overflow content."""
+        from flow.layout.style import Overflow
+
+        assert Overflow.HIDDEN.value == "hidden"
+        assert not Overflow.HIDDEN.allows_overflow()
+
+    def test_overflow_scroll(self):
+        """Scroll adds scrollbars for overflow."""
+        from flow.layout.style import Overflow
+
+        assert Overflow.SCROLL.value == "scroll"
+        assert not Overflow.SCROLL.allows_overflow()
+        assert Overflow.SCROLL.is_scrollable()
+
+    def test_overflow_hidden_not_scrollable(self):
+        """Hidden is not scrollable."""
+        from flow.layout.style import Overflow
+
+        assert not Overflow.HIDDEN.is_scrollable()
+
+    def test_overflow_visible_not_scrollable(self):
+        """Visible is not scrollable."""
+        from flow.layout.style import Overflow
+
+        assert not Overflow.VISIBLE.is_scrollable()
+
+
+class TestBoxSizing:
+    def test_border_box_default(self):
+        """Border-box is the default (width includes padding+border)."""
+        from flow.layout.style import BoxSizing
+
+        assert BoxSizing.BORDER_BOX.value == "border-box"
+        assert BoxSizing.BORDER_BOX.includes_padding()
+
+    def test_content_box(self):
+        """Content-box means width is content only."""
+        from flow.layout.style import BoxSizing
+
+        assert BoxSizing.CONTENT_BOX.value == "content-box"
+        assert not BoxSizing.CONTENT_BOX.includes_padding()
+
+
 class TestFlexStyle:
     def test_default_style(self):
         style = FlexStyle()
