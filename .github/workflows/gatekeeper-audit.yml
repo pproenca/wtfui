@@ -1,0 +1,55 @@
+# .github/workflows/gatekeeper-audit.yml
+name: Flow Gatekeeper Audit
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  gatekeeper-audit:
+    name: Performance & Security Audit
+    runs-on: ubuntu-latest
+    # Use Python 3.14 when available
+    # For now, use 3.13 and skip No-GIL test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+
+      - name: Set up Python 3.14
+        run: uv python install 3.14
+
+      - name: Install dependencies
+        run: uv sync --extra dev
+
+      - name: Run Gatekeeper Tests
+        run: |
+          uv run pytest tests/gatekeepers/ \
+            -v \
+            --benchmark-json=benchmark-results.json \
+            --benchmark-autosave \
+            -m gatekeeper
+
+      - name: Upload Benchmark Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: benchmark-results
+          path: benchmark-results.json
+
+      - name: Check Benchmark Regression
+        uses: benchmark-action/github-action-benchmark@v1
+        if: github.event_name == 'pull_request'
+        with:
+          tool: 'pytest'
+          output-file-path: benchmark-results.json
+          fail-on-alert: true
+          alert-threshold: '120%'
+          comment-on-alert: true
+          github-token: ${{ secrets.GITHUB_TOKEN }}
