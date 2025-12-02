@@ -10,6 +10,9 @@ from flow.context import get_current_parent, reset_parent, set_current_parent
 if TYPE_CHECKING:
     from contextvars import Token
 
+    from flow.layout.node import LayoutNode
+    from flow.layout.style import FlexStyle
+    from flow.layout.types import Dimension, Spacing
     from flow.renderer.protocol import RenderNode
 
 
@@ -76,3 +79,138 @@ class Element:
         node.children = [child.to_render_node() for child in self.children]
 
         return node
+
+    def get_layout_style(self) -> FlexStyle:
+        """Convert element props to a FlexStyle for layout computation.
+
+        Parses layout-related props (flex_direction, width, height, etc.)
+        and returns a FlexStyle dataclass for use with the layout engine.
+        """
+        from flow.layout.style import (
+            AlignContent,
+            AlignItems,
+            FlexDirection,
+            FlexStyle,
+            FlexWrap,
+            JustifyContent,
+        )
+
+        # Parse dimensions
+        width = _parse_dimension(self.props.get("width"))
+        height = _parse_dimension(self.props.get("height"))
+        min_width = _parse_dimension(self.props.get("min_width"))
+        min_height = _parse_dimension(self.props.get("min_height"))
+        max_width = _parse_dimension(self.props.get("max_width"))
+        max_height = _parse_dimension(self.props.get("max_height"))
+        flex_basis = _parse_dimension(self.props.get("flex_basis"))
+
+        # Parse flex container properties
+        flex_direction = FlexDirection.ROW
+        if "flex_direction" in self.props:
+            flex_direction = FlexDirection(self.props["flex_direction"])
+
+        flex_wrap = FlexWrap.NO_WRAP
+        if "flex_wrap" in self.props:
+            flex_wrap = FlexWrap(self.props["flex_wrap"])
+
+        justify_content = JustifyContent.FLEX_START
+        if "justify_content" in self.props:
+            justify_content = JustifyContent(self.props["justify_content"])
+
+        align_items = AlignItems.STRETCH
+        if "align_items" in self.props:
+            align_items = AlignItems(self.props["align_items"])
+
+        align_content = AlignContent.STRETCH
+        if "align_content" in self.props:
+            align_content = AlignContent(self.props["align_content"])
+
+        # Parse flex item properties
+        flex_grow = float(self.props.get("flex_grow", 0.0))
+        flex_shrink = float(self.props.get("flex_shrink", 1.0))
+
+        # Parse gap
+        gap = float(self.props.get("gap", 0.0))
+        row_gap = self.props.get("row_gap")
+        column_gap = self.props.get("column_gap")
+
+        # Parse spacing
+        padding = _parse_spacing(self.props.get("padding"))
+        margin = _parse_spacing(self.props.get("margin"))
+
+        return FlexStyle(
+            flex_direction=flex_direction,
+            flex_wrap=flex_wrap,
+            justify_content=justify_content,
+            align_items=align_items,
+            align_content=align_content,
+            flex_grow=flex_grow,
+            flex_shrink=flex_shrink,
+            flex_basis=flex_basis,
+            width=width,
+            height=height,
+            min_width=min_width,
+            min_height=min_height,
+            max_width=max_width,
+            max_height=max_height,
+            gap=gap,
+            row_gap=row_gap,
+            column_gap=column_gap,
+            padding=padding,
+            margin=margin,
+        )
+
+    def to_layout_node(self) -> LayoutNode:
+        """Convert this element to a LayoutNode for layout computation.
+
+        Creates a LayoutNode tree matching the element tree structure,
+        allowing layout to be computed independently of rendering.
+        """
+        from flow.layout.node import LayoutNode
+
+        node = LayoutNode(style=self.get_layout_style())
+        for child in self.children:
+            node.add_child(child.to_layout_node())
+        return node
+
+
+def _parse_dimension(value: float | str | None) -> Dimension:
+    """Parse a dimension value into a Dimension object."""
+    from flow.layout.types import Dimension
+
+    if value is None:
+        return Dimension.auto()
+    if isinstance(value, int | float):
+        return Dimension.points(float(value))
+    if isinstance(value, str):
+        if value.endswith("%"):
+            return Dimension.percent(float(value[:-1]))
+        return Dimension.points(float(value.replace("px", "")))
+    return Dimension.auto()
+
+
+def _parse_spacing(value: float | tuple[float, ...] | None) -> Spacing:
+    """Parse a spacing value into a Spacing object."""
+    from flow.layout.types import Dimension, Spacing
+
+    if value is None:
+        return Spacing()
+    if isinstance(value, int | float):
+        d = Dimension.points(float(value))
+        return Spacing(top=d, right=d, bottom=d, left=d)
+    if isinstance(value, tuple):
+        if len(value) == 4:
+            return Spacing(
+                top=Dimension.points(value[0]),
+                right=Dimension.points(value[1]),
+                bottom=Dimension.points(value[2]),
+                left=Dimension.points(value[3]),
+            )
+        if len(value) == 2:
+            v = Dimension.points(value[0])
+            h = Dimension.points(value[1])
+            return Spacing(top=v, right=h, bottom=v, left=h)
+        if len(value) == 1:
+            d = Dimension.points(value[0])
+            return Spacing(top=d, right=d, bottom=d, left=d)
+    return Spacing()
