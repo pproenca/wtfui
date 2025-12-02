@@ -34,12 +34,19 @@ def compute_layout(node: LayoutNode, available: Size) -> None:
     style = node.style
 
     width = style.width.resolve(available.width)
-    if width is None:
-        width = available.width
-
     height = style.height.resolve(available.height)
-    if height is None:
-        height = available.height
+
+    # Apply aspect ratio if set
+    if style.aspect_ratio is not None:
+        width, height = _apply_aspect_ratio(
+            width, height, style.aspect_ratio, available.width, available.height
+        )
+    else:
+        # Default to available size if not specified
+        if width is None:
+            width = available.width
+        if height is None:
+            height = available.height
 
     # Apply min/max constraints
     width = _clamp_size(width, style.min_width, style.max_width, available.width)
@@ -66,6 +73,47 @@ def _clamp_size(
     max_val = max_dim.resolve(parent) if max_dim.is_defined() else float("inf")
 
     return max(min_val or 0, min(value, max_val or float("inf")))
+
+
+def _apply_aspect_ratio(
+    width: float | None,
+    height: float | None,
+    aspect_ratio: float,
+    available_width: float,
+    available_height: float,
+) -> tuple[float, float]:
+    """Apply aspect ratio to calculate missing dimension.
+
+    Aspect ratio is defined as width / height.
+    - If width is known, height = width / aspect_ratio
+    - If height is known, width = height * aspect_ratio
+    - If neither is known, use available space and aspect ratio
+
+    Args:
+        width: Resolved width (or None if auto).
+        height: Resolved height (or None if auto).
+        aspect_ratio: The width:height ratio (e.g., 2.0 means 2:1).
+        available_width: Available width for fallback.
+        available_height: Available height for fallback.
+
+    Returns:
+        Tuple of (width, height) with aspect ratio applied.
+    """
+    if width is not None and height is not None:
+        # Both specified - aspect ratio doesn't apply
+        return width, height
+
+    if width is not None:
+        # Calculate height from width
+        return width, width / aspect_ratio
+
+    if height is not None:
+        # Calculate width from height
+        return height * aspect_ratio, height
+
+    # Neither specified - use available space
+    # Try to fit within available space maintaining aspect ratio
+    return available_width, available_width / aspect_ratio
 
 
 def _layout_children(node: LayoutNode) -> None:
@@ -123,14 +171,20 @@ def _layout_children(node: LayoutNode) -> None:
             gap=gap,
         )
 
-        # Calculate cross sizes for alignment
+        # Calculate cross sizes for alignment (considering aspect ratio)
         cross_sizes = []
-        for item in line.items:
+        for idx, item in enumerate(line.items):
             if is_row:
                 h = item.style.height.resolve(container_cross)
+                if h is None and item.style.aspect_ratio is not None:
+                    # Calculate height from width using aspect ratio
+                    h = main_sizes[idx] / item.style.aspect_ratio
                 cross_sizes.append(h if h else container_cross)
             else:
                 w = item.style.width.resolve(container_cross)
+                if w is None and item.style.aspect_ratio is not None:
+                    # Calculate width from height using aspect ratio
+                    w = main_sizes[idx] * item.style.aspect_ratio
                 cross_sizes.append(w if w else container_cross)
 
         # Determine line cross size
