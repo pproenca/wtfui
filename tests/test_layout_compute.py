@@ -705,3 +705,341 @@ class TestRTLLayout:
         assert child2.layout.width == 150
         assert child1.layout.x == 150  # First child on the right
         assert child2.layout.x == 0  # Second child on the left
+
+
+class TestAutoMargins:
+    """Tests for auto margins support (Task 5.2)."""
+
+    def test_auto_margin_left_pushes_right_row(self):
+        """Auto margin on left pushes item to the right in row layout."""
+        from flow.layout.types import Spacing
+
+        parent = LayoutNode(
+            style=FlexStyle(
+                width=Dimension.points(200),
+                height=Dimension.points(100),
+                flex_direction=FlexDirection.ROW,
+            )
+        )
+        child = LayoutNode(
+            style=FlexStyle(
+                width=Dimension.points(50),
+                margin=Spacing(
+                    left=Dimension.auto(),
+                    right=Dimension.points(0),
+                    top=Dimension.points(0),
+                    bottom=Dimension.points(0),
+                ),
+            )
+        )
+        parent.add_child(child)
+
+        compute_layout(parent, Size(200, 100))
+
+        # Child pushed to the right by auto left margin
+        assert child.layout.x == 150  # 200 - 50
+        assert child.layout.width == 50
+
+    def test_auto_margin_right_stays_left_row(self):
+        """Auto margin on right keeps item at left in row layout."""
+        from flow.layout.types import Spacing
+
+        parent = LayoutNode(
+            style=FlexStyle(
+                width=Dimension.points(200),
+                height=Dimension.points(100),
+                flex_direction=FlexDirection.ROW,
+            )
+        )
+        child = LayoutNode(
+            style=FlexStyle(
+                width=Dimension.points(50),
+                margin=Spacing(
+                    left=Dimension.points(0),
+                    right=Dimension.auto(),
+                    top=Dimension.points(0),
+                    bottom=Dimension.points(0),
+                ),
+            )
+        )
+        parent.add_child(child)
+
+        compute_layout(parent, Size(200, 100))
+
+        # Child stays at left with auto right margin
+        assert child.layout.x == 0
+        assert child.layout.width == 50
+
+    def test_auto_margins_both_centers_row(self):
+        """Auto margins on both left and right centers the item in row layout."""
+        from flow.layout.types import Spacing
+
+        parent = LayoutNode(
+            style=FlexStyle(
+                width=Dimension.points(200),
+                height=Dimension.points(100),
+                flex_direction=FlexDirection.ROW,
+            )
+        )
+        child = LayoutNode(
+            style=FlexStyle(
+                width=Dimension.points(50),
+                margin=Spacing(
+                    left=Dimension.auto(),
+                    right=Dimension.auto(),
+                    top=Dimension.points(0),
+                    bottom=Dimension.points(0),
+                ),
+            )
+        )
+        parent.add_child(child)
+
+        compute_layout(parent, Size(200, 100))
+
+        # Child centered: (200 - 50) / 2 = 75
+        assert child.layout.x == 75
+        assert child.layout.width == 50
+
+    def test_auto_margin_top_pushes_bottom_column(self):
+        """Auto margin on top pushes item to the bottom in column layout."""
+        from flow.layout.types import Spacing
+
+        parent = LayoutNode(
+            style=FlexStyle(
+                width=Dimension.points(100),
+                height=Dimension.points(200),
+                flex_direction=FlexDirection.COLUMN,
+            )
+        )
+        child = LayoutNode(
+            style=FlexStyle(
+                height=Dimension.points(50),
+                margin=Spacing(
+                    left=Dimension.points(0),
+                    right=Dimension.points(0),
+                    top=Dimension.auto(),
+                    bottom=Dimension.points(0),
+                ),
+            )
+        )
+        parent.add_child(child)
+
+        compute_layout(parent, Size(100, 200))
+
+        # Child pushed to the bottom by auto top margin
+        assert child.layout.y == 150  # 200 - 50
+        assert child.layout.height == 50
+
+    def test_auto_margin_bottom_stays_top_column(self):
+        """Auto margin on bottom keeps item at top in column layout."""
+        from flow.layout.types import Spacing
+
+        parent = LayoutNode(
+            style=FlexStyle(
+                width=Dimension.points(100),
+                height=Dimension.points(200),
+                flex_direction=FlexDirection.COLUMN,
+            )
+        )
+        child = LayoutNode(
+            style=FlexStyle(
+                height=Dimension.points(50),
+                margin=Spacing(
+                    left=Dimension.points(0),
+                    right=Dimension.points(0),
+                    top=Dimension.points(0),
+                    bottom=Dimension.auto(),
+                ),
+            )
+        )
+        parent.add_child(child)
+
+        compute_layout(parent, Size(100, 200))
+
+        # Child stays at top with auto bottom margin
+        assert child.layout.y == 0
+        assert child.layout.height == 50
+
+    def test_auto_margins_both_centers_column(self):
+        """Auto margins on both top and bottom centers the item in column layout."""
+        from flow.layout.types import Spacing
+
+        parent = LayoutNode(
+            style=FlexStyle(
+                width=Dimension.points(100),
+                height=Dimension.points(200),
+                flex_direction=FlexDirection.COLUMN,
+            )
+        )
+        child = LayoutNode(
+            style=FlexStyle(
+                height=Dimension.points(50),
+                margin=Spacing(
+                    left=Dimension.points(0),
+                    right=Dimension.points(0),
+                    top=Dimension.auto(),
+                    bottom=Dimension.auto(),
+                ),
+            )
+        )
+        parent.add_child(child)
+
+        compute_layout(parent, Size(100, 200))
+
+        # Child centered: (200 - 50) / 2 = 75
+        assert child.layout.y == 75
+        assert child.layout.height == 50
+
+    def test_auto_margins_with_justify_content_center(self):
+        """Auto margins work with justify-content center (single item overrides)."""
+        from flow.layout.types import Spacing
+
+        parent = LayoutNode(
+            style=FlexStyle(
+                width=Dimension.points(200),
+                height=Dimension.points(100),
+                flex_direction=FlexDirection.ROW,
+                justify_content=JustifyContent.CENTER,
+            )
+        )
+        child = LayoutNode(
+            style=FlexStyle(
+                width=Dimension.points(50),
+                margin=Spacing(
+                    left=Dimension.auto(),
+                    right=Dimension.points(0),
+                    top=Dimension.points(0),
+                    bottom=Dimension.points(0),
+                ),
+            )
+        )
+        parent.add_child(child)
+
+        compute_layout(parent, Size(200, 100))
+
+        # Child has auto left margin, so it's pushed to the right (overrides justify-content)
+        assert child.layout.x == 150  # 200 - 50
+
+    def test_auto_margins_single_child_centered(self):
+        """Single child with auto margins both sides is centered."""
+        from flow.layout.types import Spacing
+
+        parent = LayoutNode(
+            style=FlexStyle(
+                width=Dimension.points(300),
+                height=Dimension.points(100),
+                flex_direction=FlexDirection.ROW,
+            )
+        )
+        child = LayoutNode(
+            style=FlexStyle(
+                width=Dimension.points(50),
+                margin=Spacing(
+                    left=Dimension.auto(),
+                    right=Dimension.auto(),
+                    top=Dimension.points(0),
+                    bottom=Dimension.points(0),
+                ),
+            )
+        )
+        parent.add_child(child)
+
+        compute_layout(parent, Size(300, 100))
+
+        # Single child centered by auto margins: (300 - 50) / 2 = 125
+        assert child.layout.x == 125
+        assert child.layout.width == 50
+
+    def test_auto_margins_single_child_centered_column(self):
+        """Single child with auto margins both sides is centered in column."""
+        from flow.layout.types import Spacing
+
+        parent = LayoutNode(
+            style=FlexStyle(
+                width=Dimension.points(100),
+                height=Dimension.points(300),
+                flex_direction=FlexDirection.COLUMN,
+            )
+        )
+        child = LayoutNode(
+            style=FlexStyle(
+                height=Dimension.points(50),
+                margin=Spacing(
+                    left=Dimension.points(0),
+                    right=Dimension.points(0),
+                    top=Dimension.auto(),
+                    bottom=Dimension.auto(),
+                ),
+            )
+        )
+        parent.add_child(child)
+
+        compute_layout(parent, Size(100, 300))
+
+        # Single child centered by auto margins: (300 - 50) / 2 = 125
+        assert child.layout.y == 125
+        assert child.layout.height == 50
+
+    def test_auto_margins_with_padding_row(self):
+        """Auto margins work correctly with padding in row layout."""
+        from flow.layout.types import Spacing
+
+        parent = LayoutNode(
+            style=FlexStyle(
+                width=Dimension.points(220),
+                height=Dimension.points(100),
+                flex_direction=FlexDirection.ROW,
+                padding=Spacing.all(Dimension.points(10)),
+            )
+        )
+        child = LayoutNode(
+            style=FlexStyle(
+                width=Dimension.points(50),
+                margin=Spacing(
+                    left=Dimension.auto(),
+                    right=Dimension.auto(),
+                    top=Dimension.points(0),
+                    bottom=Dimension.points(0),
+                ),
+            )
+        )
+        parent.add_child(child)
+
+        compute_layout(parent, Size(220, 100))
+
+        # Inner width: 220 - 20 = 200
+        # Child centered within inner space: (200 - 50) / 2 = 75
+        # But offset by padding.left: 75 + 10 = 85
+        assert child.layout.x == 85
+
+    def test_auto_margins_with_border_row(self):
+        """Auto margins work correctly with border in row layout."""
+        from flow.layout.types import Border, Spacing
+
+        parent = LayoutNode(
+            style=FlexStyle(
+                width=Dimension.points(220),
+                height=Dimension.points(100),
+                flex_direction=FlexDirection.ROW,
+                border=Border.all(10),
+            )
+        )
+        child = LayoutNode(
+            style=FlexStyle(
+                width=Dimension.points(50),
+                margin=Spacing(
+                    left=Dimension.auto(),
+                    right=Dimension.auto(),
+                    top=Dimension.points(0),
+                    bottom=Dimension.points(0),
+                ),
+            )
+        )
+        parent.add_child(child)
+
+        compute_layout(parent, Size(220, 100))
+
+        # Inner width: 220 - 20 = 200
+        # Child centered within inner space: (200 - 50) / 2 = 75
+        # But offset by border.left: 75 + 10 = 85
+        assert child.layout.x == 85

@@ -279,3 +279,88 @@ def align_cross_axis(
             results.append((0, size))
 
     return results
+
+
+def apply_auto_margins(
+    items: list[LayoutNode],
+    positions: list[float],
+    sizes: list[float],
+    container_size: float,
+    is_row: bool,
+) -> list[float]:
+    """Apply auto margins to adjust item positions.
+
+    Auto margins absorb free space and override justify-content for the affected item.
+    This only applies when there is a single item in the line, or when items have
+    explicit auto margins that should override the default justify-content behavior.
+
+    Implements CSS Flexbox spec section 8.1 (Aligning with auto margins):
+    https://www.w3.org/TR/css-flexbox-1/#auto-margins
+
+    Args:
+        items: List of LayoutNodes.
+        positions: List of item positions (from justify-content).
+        sizes: List of item sizes in the main axis.
+        container_size: Total container size in the main axis.
+        is_row: True for row direction, False for column.
+
+    Returns:
+        List of adjusted positions with auto margins applied.
+    """
+    if not items:
+        return positions
+
+    adjusted = list(positions)
+
+    # Check if there's only one item - in this case, auto margins work as expected
+    if len(items) == 1:
+        margin = items[0].style.margin
+        size = sizes[0]
+
+        # Only apply auto margins if they're explicitly set for alignment
+        # Skip if all margins are auto (which is the default state)
+        all_auto = (
+            margin.left_is_auto()
+            and margin.right_is_auto()
+            and margin.top_is_auto()
+            and margin.bottom_is_auto()
+        )
+
+        if all_auto:
+            # Default state - don't apply auto margin logic
+            return adjusted
+
+        # Auto margins only make sense when there's free space
+        has_free_space = container_size > size
+
+        if is_row and has_free_space:
+            left_auto = margin.left_is_auto()
+            right_auto = margin.right_is_auto()
+
+            # Only apply if explicitly using auto margins for alignment
+            # (both auto = centering, or left auto = right align)
+            if left_auto and right_auto:
+                # Both auto: center the item
+                remaining = container_size - size
+                adjusted[0] = remaining / 2
+            elif left_auto and not right_auto:
+                # Left auto only (with explicit right=0): push item to the right
+                adjusted[0] = container_size - size
+            # right_auto alone doesn't change position (stays at left)
+        elif not is_row and has_free_space:
+            top_auto = margin.top_is_auto()
+            bottom_auto = margin.bottom_is_auto()
+
+            if top_auto and bottom_auto:
+                # Both auto: center the item
+                remaining = container_size - size
+                adjusted[0] = remaining / 2
+            elif top_auto and not bottom_auto:
+                # Top auto only (with explicit bottom=0): push item to the bottom
+                adjusted[0] = container_size - size
+            # bottom_auto alone doesn't change position (stays at top)
+
+    # For multiple items: auto margins don't override justify-content positioning
+    # The free space distribution has already been handled by justify-content
+
+    return adjusted

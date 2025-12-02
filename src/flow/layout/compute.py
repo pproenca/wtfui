@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 
 from flow.layout.algorithm import (
     align_cross_axis,
+    apply_auto_margins,
     distribute_justify_content,
     resolve_flexible_lengths,
 )
@@ -232,6 +233,15 @@ def _layout_children(node: LayoutNode) -> None:
             container_size=container_main,
             justify=style.justify_content,
             gap=gap,
+        )
+
+        # Apply auto margins (overrides justify-content for items with auto margins)
+        main_positions = apply_auto_margins(
+            items=line.items,
+            positions=main_positions,
+            sizes=main_sizes,
+            container_size=container_main,
+            is_row=is_row,
         )
 
         # Calculate cross sizes for alignment (considering aspect ratio)
