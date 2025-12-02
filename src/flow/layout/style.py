@@ -6,7 +6,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field, replace
 from enum import Enum
 
-from flow.layout.types import Dimension, Spacing
+from flow.layout.types import Border, Dimension, Spacing
 
 
 class FlexDirection(Enum):
@@ -197,6 +197,7 @@ class FlexStyle:
     # Spacing
     margin: Spacing = field(default_factory=Spacing)
     padding: Spacing = field(default_factory=Spacing)
+    border: Border = field(default_factory=Border.zero)
     gap: float = 0.0
     row_gap: float | None = None
     column_gap: float | None = None

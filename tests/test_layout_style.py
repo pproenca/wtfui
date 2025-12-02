@@ -299,3 +299,66 @@ class TestFlexStyleNewEnums:
         assert new_style.display == Display.NONE  # preserved
         assert new_style.direction == Direction.RTL  # updated
         assert style.direction == Direction.INHERIT  # original unchanged
+
+
+class TestFlexStyleBorder:
+    """Tests for FlexStyle border field (Task 2.2)."""
+
+    def test_default_style_has_zero_border(self):
+        """Default FlexStyle should have zero border."""
+        from flow.layout.types import Border
+
+        style = FlexStyle()
+        assert style.border == Border.zero()
+        assert style.border.top == 0
+        assert style.border.right == 0
+        assert style.border.bottom == 0
+        assert style.border.left == 0
+
+    def test_style_with_uniform_border(self):
+        """FlexStyle should accept uniform border."""
+        from flow.layout.types import Border
+
+        border = Border.all(5.0)
+        style = FlexStyle(border=border)
+        assert style.border.top == 5.0
+        assert style.border.right == 5.0
+        assert style.border.bottom == 5.0
+        assert style.border.left == 5.0
+
+    def test_style_with_custom_border(self):
+        """FlexStyle should accept custom border values per side."""
+        from flow.layout.types import Border
+
+        border = Border(top=1.0, right=2.0, bottom=3.0, left=4.0)
+        style = FlexStyle(border=border)
+        assert style.border.top == 1.0
+        assert style.border.right == 2.0
+        assert style.border.bottom == 3.0
+        assert style.border.left == 4.0
+
+    def test_border_horizontal_vertical_properties(self):
+        """Border should have horizontal and vertical sum properties."""
+        from flow.layout.types import Border
+
+        border = Border(top=2.0, right=3.0, bottom=4.0, left=5.0)
+        style = FlexStyle(border=border)
+        assert style.border.horizontal == 8.0  # left + right = 5 + 3
+        assert style.border.vertical == 6.0  # top + bottom = 2 + 4
+
+    def test_style_immutable_border(self):
+        """Border field should respect frozen dataclass."""
+        from flow.layout.types import Border
+
+        style = FlexStyle()
+        with pytest.raises(AttributeError):
+            style.border = Border.all(10.0)  # type: ignore[misc]
+
+    def test_style_with_updates_border(self):
+        """with_updates should work with border field."""
+        from flow.layout.types import Border
+
+        style = FlexStyle(border=Border.all(5.0))
+        new_style = style.with_updates(border=Border.all(10.0))
+        assert new_style.border.top == 10.0
+        assert style.border.top == 5.0  # original unchanged

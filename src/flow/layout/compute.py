@@ -170,10 +170,11 @@ def _layout_children(node: LayoutNode) -> None:
     direction = style.flex_direction
     is_row = direction.is_row()
 
-    # Get container inner size (subtract padding)
+    # Get container inner size (subtract padding and border)
     padding = style.padding.resolve(node.layout.width, node.layout.height)
-    inner_width = node.layout.width - padding.horizontal
-    inner_height = node.layout.height - padding.vertical
+    border = style.border
+    inner_width = node.layout.width - padding.horizontal - border.horizontal
+    inner_height = node.layout.height - padding.vertical - border.vertical
 
     container_main = inner_width if is_row else inner_height
     container_cross = inner_height if is_row else inner_width
@@ -270,7 +271,9 @@ def _layout_children(node: LayoutNode) -> None:
     # Second pass: position items using calculated offsets
     for line_idx, line in enumerate(lines):
         main_sizes, main_positions, cross_results = line_data[line_idx]
-        cross_offset = (padding.top if is_row else padding.left) + line_offsets[line_idx]
+        cross_offset = (
+            border.top + padding.top if is_row else border.left + padding.left
+        ) + line_offsets[line_idx]
 
         # For stretch, update line cross size
         if effective_align_content == AlignContent.STRETCH and len(lines) > 1:
@@ -290,13 +293,13 @@ def _layout_children(node: LayoutNode) -> None:
                 cross_pos = 0
 
             if is_row:
-                x = padding.left + main_pos
+                x = border.left + padding.left + main_pos
                 y = cross_offset + cross_pos
                 w = main_size
                 h = cross_size
             else:
                 x = cross_offset + cross_pos
-                y = padding.top + main_pos
+                y = border.top + padding.top + main_pos
                 w = cross_size
                 h = main_size
 
