@@ -1,0 +1,501 @@
+# Interactive Developer Script Implementation Plan
+
+> **For Claude:** REQUIRED SUB-SKILL: Use super:executing-plans to implement this plan task-by-task.
+> **Python Skills:** Reference python:uv-package-manager for commands.
+
+**Goal:** Create a simple bash script (`./dev`) that guides developers through common Flow framework development tasks with an interactive menu.
+
+**Architecture:** A single executable bash script at the project root that uses `select` for menus, color output for UX, and delegates to `uv run` commands. No external dependencies beyond bash and uv.
+
+**Tech Stack:** Bash, uv package manager
+
+**Commands:** All Python commands use `uv run` prefix
+
+---
+
+## Use Cases Covered
+
+| Command | Description |
+|---------|-------------|
+| `./dev` | Interactive menu (default) |
+| `./dev setup` | Install dependencies |
+| `./dev start` | Start dev server |
+| `./dev test` | Run tests |
+| `./dev build` | Production build |
+| `./dev lint` | Lint and format |
+| `./dev new` | Create new project |
+| `./dev help` | Show help |
+
+---
+
+### Task 1: Create Base Script with Menu
+
+**Files:**
+- Create: `dev` (executable bash script at project root)
+- Test: Manual verification
+
+**Step 1: Create the script with header and colors**
+
+```bash
+#!/usr/bin/env bash
+# Flow Developer Script - Interactive development helper
+# Usage: ./dev [command]
+
+set -e
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+BOLD='\033[1m'
+NC='\033[0m' # No Color
+
+# Print with color
+print_header() {
+    echo -e "\n${BOLD}${BLUE}═══════════════════════════════════════${NC}"
+    echo -e "${BOLD}${BLUE}  Flow Framework - Developer Tools${NC}"
+    echo -e "${BOLD}${BLUE}═══════════════════════════════════════${NC}\n"
+}
+
+print_success() {
+    echo -e "${GREEN}✓${NC} $1"
+}
+
+print_error() {
+    echo -e "${RED}✗${NC} $1"
+}
+
+print_info() {
+    echo -e "${CYAN}→${NC} $1"
+}
+
+print_warning() {
+    echo -e "${YELLOW}!${NC} $1"
+}
+```
+
+**Step 2: Add command functions**
+
+```bash
+# Command: setup
+cmd_setup() {
+    print_info "Installing dependencies..."
+    uv sync --dev
+    print_success "Dependencies installed!"
+
+    if [ ! -f ".git/hooks/pre-commit" ]; then
+        print_info "Installing pre-commit hooks..."
+        uv run pre-commit install
+        print_success "Pre-commit hooks installed!"
+    fi
+}
+
+# Command: start (dev server)
+cmd_start() {
+    local app_path="${1:-app:app}"
+    print_info "Starting dev server..."
+    echo -e "${CYAN}   App: ${app_path}${NC}"
+    echo -e "${CYAN}   URL: http://127.0.0.1:8000${NC}\n"
+    uv run flow dev "$app_path"
+}
+
+# Command: test
+cmd_test() {
+    local test_args="${*:---v}"
+    print_info "Running tests..."
+    uv run pytest $test_args
+}
+
+# Command: build
+cmd_build() {
+    local app_path="${1:-app:app}"
+    local output="${2:-dist}"
+    print_info "Building for production..."
+    uv run flow build "$app_path" -o "$output"
+}
+
+# Command: lint
+cmd_lint() {
+    print_info "Running linter..."
+    uv run ruff check --fix src/ tests/
+    print_success "Lint complete!"
+
+    print_info "Running formatter..."
+    uv run ruff format src/ tests/
+    print_success "Format complete!"
+
+    print_info "Running type checker..."
+    uv run mypy src/ tests/
+    print_success "Type check complete!"
+}
+
+# Command: new project
+cmd_new() {
+    local name="$1"
+    if [ -z "$name" ]; then
+        echo -n "Project name: "
+        read -r name
+    fi
+
+    if [ -z "$name" ]; then
+        print_error "Project name is required"
+        exit 1
+    fi
+
+    print_info "Creating new Flow project: $name"
+    uv run flow new "$name"
+}
+
+# Command: help
+cmd_help() {
+    echo -e "${BOLD}Usage:${NC} ./dev [command] [options]"
+    echo ""
+    echo -e "${BOLD}Commands:${NC}"
+    echo -e "  ${CYAN}setup${NC}      Install dependencies and pre-commit hooks"
+    echo -e "  ${CYAN}start${NC}      Start the development server"
+    echo -e "  ${CYAN}test${NC}       Run tests (pass args: ./dev test -k 'test_name')"
+    echo -e "  ${CYAN}build${NC}      Build for production"
+    echo -e "  ${CYAN}lint${NC}       Run linter, formatter, and type checker"
+    echo -e "  ${CYAN}new${NC}        Create a new Flow project"
+    echo -e "  ${CYAN}help${NC}       Show this help message"
+    echo ""
+    echo -e "${BOLD}Examples:${NC}"
+    echo "  ./dev                    # Interactive menu"
+    echo "  ./dev setup              # Install dependencies"
+    echo "  ./dev start myapp:app    # Start with specific app"
+    echo "  ./dev test -k signal     # Run tests matching 'signal'"
+    echo "  ./dev new my-project     # Create new project"
+}
+```
+
+**Step 3: Add interactive menu**
+
+```bash
+# Interactive menu
+show_menu() {
+    print_header
+
+    echo -e "${BOLD}What would you like to do?${NC}\n"
+
+    local options=(
+        "Setup      - Install dependencies"
+        "Start      - Start dev server"
+        "Test       - Run tests"
+        "Build      - Build for production"
+        "Lint       - Lint and format code"
+        "New        - Create new project"
+        "Help       - Show help"
+        "Quit"
+    )
+
+    PS3=$'\n'"${CYAN}Enter choice [1-${#options[@]}]:${NC} "
+
+    select opt in "${options[@]}"; do
+        case $opt in
+            "Setup"*)
+                cmd_setup
+                break
+                ;;
+            "Start"*)
+                cmd_start
+                break
+                ;;
+            "Test"*)
+                echo -n "Test arguments (Enter for all): "
+                read -r test_args
+                cmd_test $test_args
+                break
+                ;;
+            "Build"*)
+                echo -n "App path (Enter for app:app): "
+                read -r app_path
+                cmd_build "${app_path:-app:app}"
+                break
+                ;;
+            "Lint"*)
+                cmd_lint
+                break
+                ;;
+            "New"*)
+                cmd_new
+                break
+                ;;
+            "Help"*)
+                cmd_help
+                break
+                ;;
+            "Quit")
+                echo -e "\n${GREEN}Goodbye!${NC}"
+                exit 0
+                ;;
+            *)
+                print_error "Invalid option. Please try again."
+                ;;
+        esac
+    done
+}
+```
+
+**Step 4: Add main entry point**
+
+```bash
+# Main entry point
+main() {
+    # Check if uv is installed
+    if ! command -v uv &> /dev/null; then
+        print_error "uv is not installed. Install it with:"
+        echo "  curl -LsSf https://astral.sh/uv/install.sh | sh"
+        exit 1
+    fi
+
+    # Parse command
+    local cmd="${1:-}"
+
+    case "$cmd" in
+        "")
+            show_menu
+            ;;
+        setup)
+            cmd_setup
+            ;;
+        start)
+            shift
+            cmd_start "$@"
+            ;;
+        test)
+            shift
+            cmd_test "$@"
+            ;;
+        build)
+            shift
+            cmd_build "$@"
+            ;;
+        lint)
+            cmd_lint
+            ;;
+        new)
+            shift
+            cmd_new "$@"
+            ;;
+        help|--help|-h)
+            cmd_help
+            ;;
+        *)
+            print_error "Unknown command: $cmd"
+            cmd_help
+            exit 1
+            ;;
+    esac
+}
+
+main "$@"
+```
+
+**Step 5: Make script executable and test**
+
+Run:
+```bash
+chmod +x dev
+./dev help
+```
+Expected: Shows help message with all commands
+
+**Step 6: Test interactive menu**
+
+Run:
+```bash
+./dev
+```
+Expected: Shows interactive menu with numbered options
+
+**Step 7: Commit**
+
+```bash
+git add dev
+git commit -m "feat: add interactive developer script"
+```
+
+---
+
+### Task 2: Add Test for Script
+
+**Files:**
+- Create: `tests/test_dev_script.py`
+
+**Step 1: Write the test**
+
+```python
+# tests/test_dev_script.py
+"""Tests for the dev script."""
+
+import subprocess
+from pathlib import Path
+
+import pytest
+
+
+@pytest.fixture
+def dev_script() -> Path:
+    """Path to the dev script."""
+    script = Path(__file__).parent.parent / "dev"
+    assert script.exists(), "dev script not found"
+    return script
+
+
+def test_dev_script_is_executable(dev_script: Path):
+    """Dev script should be executable."""
+    import os
+    assert os.access(dev_script, os.X_OK)
+
+
+def test_dev_script_help(dev_script: Path):
+    """Dev script help command works."""
+    result = subprocess.run(
+        [str(dev_script), "help"],
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0
+    assert "Usage:" in result.stdout
+    assert "setup" in result.stdout
+    assert "start" in result.stdout
+    assert "test" in result.stdout
+
+
+def test_dev_script_unknown_command(dev_script: Path):
+    """Dev script handles unknown commands."""
+    result = subprocess.run(
+        [str(dev_script), "unknown_command"],
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 1
+    assert "Unknown command" in result.stdout or "Unknown command" in result.stderr
+```
+
+**Step 2: Run tests**
+
+Run: `uv run pytest tests/test_dev_script.py -v`
+Expected: PASS (3 tests)
+
+**Step 3: Commit**
+
+```bash
+git add tests/test_dev_script.py
+git commit -m "test: add tests for dev script"
+```
+
+---
+
+### Task 3: Add Quick Commands
+
+**Files:**
+- Modify: `dev`
+
+**Step 1: Add quick test commands**
+
+Add after `cmd_test`:
+
+```bash
+# Command: test with coverage
+cmd_test_cov() {
+    print_info "Running tests with coverage..."
+    uv run pytest --cov=src/flow --cov-report=term-missing "$@"
+}
+
+# Command: watch tests (requires pytest-watch)
+cmd_test_watch() {
+    print_info "Watching tests..."
+    print_warning "Install pytest-watch if not available: uv add --dev pytest-watch"
+    uv run ptw -- -v "$@"
+}
+```
+
+**Step 2: Add to menu options**
+
+Update the `options` array in `show_menu`:
+
+```bash
+    local options=(
+        "Setup      - Install dependencies"
+        "Start      - Start dev server"
+        "Test       - Run tests"
+        "Test+Cov   - Run tests with coverage"
+        "Build      - Build for production"
+        "Lint       - Lint and format code"
+        "New        - Create new project"
+        "Help       - Show help"
+        "Quit"
+    )
+```
+
+**Step 3: Add case for coverage**
+
+```bash
+            "Test+Cov"*)
+                cmd_test_cov
+                break
+                ;;
+```
+
+**Step 4: Update help**
+
+Add to `cmd_help`:
+
+```bash
+    echo -e "  ${CYAN}test:cov${NC}   Run tests with coverage report"
+```
+
+**Step 5: Add CLI shortcut**
+
+Update main case:
+
+```bash
+        test:cov)
+            shift
+            cmd_test_cov "$@"
+            ;;
+```
+
+**Step 6: Test**
+
+Run: `./dev test:cov`
+Expected: Runs tests with coverage report
+
+**Step 7: Commit**
+
+```bash
+git add dev
+git commit -m "feat(dev): add test coverage command"
+```
+
+---
+
+## Summary
+
+| Task | Description |
+|------|-------------|
+| 1 | Create base script with menu, commands, and colors |
+| 2 | Add automated tests for the script |
+| 3 | Add quick commands (coverage, etc.) |
+
+---
+
+## Verification Checklist
+
+After completing all tasks, verify:
+
+- [ ] `./dev` - Shows interactive menu
+- [ ] `./dev help` - Shows help text
+- [ ] `./dev setup` - Installs dependencies
+- [ ] `./dev start` - Starts dev server
+- [ ] `./dev test` - Runs tests
+- [ ] `./dev test:cov` - Runs tests with coverage
+- [ ] `./dev lint` - Runs linter and formatter
+- [ ] `./dev build` - Builds for production
+- [ ] `./dev new myapp` - Creates new project
+- [ ] Tests pass: `uv run pytest tests/test_dev_script.py -v`
