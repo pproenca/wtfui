@@ -419,6 +419,16 @@ def _distribute_align_content(
             offsets.append(offset)
             offset += size + space_per_line
 
+    elif align_content == AlignContent.SPACE_EVENLY:
+        # Space distributed evenly (including edges)
+        # n lines = n+1 gaps (before, between each, after)
+        num_gaps = num_lines + 1
+        space_per_gap = (remaining + total_gap) / num_gaps
+        offset = space_per_gap
+        for size in line_sizes:
+            offsets.append(offset)
+            offset += size + space_per_gap
+
     elif align_content == AlignContent.STRETCH:
         # Lines stretched to fill container (handled separately in layout)
         # For offsets, distribute evenly

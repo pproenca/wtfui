@@ -158,6 +158,53 @@ class TestAlignContent:
         assert child1.layout.y == 0
         assert child2.layout.y == 50
 
+    def test_align_content_space_evenly(self):
+        """Align-content: space-evenly distributes space evenly including edges."""
+        parent = LayoutNode(
+            style=FlexStyle(
+                flex_direction=FlexDirection.ROW,
+                flex_wrap=FlexWrap.WRAP,
+                align_content=AlignContent.SPACE_EVENLY,
+            )
+        )
+
+        child1 = LayoutNode(
+            style=FlexStyle(width=Dimension.points(60), height=Dimension.points(30))
+        )
+        child2 = LayoutNode(
+            style=FlexStyle(width=Dimension.points(60), height=Dimension.points(30))
+        )
+        parent.add_child(child1)
+        parent.add_child(child2)
+
+        compute_layout(parent, Size(width=100, height=100))
+
+        # Remaining space: 100 - 60 = 40, divided into 3 equal gaps (before, between, after)
+        # Each gap: 40 / 3 ≈ 13.33
+        # First line: 13.33 offset
+        # Second line: 13.33 + 30 + 13.33 = 56.66
+        assert abs(child1.layout.y - 13.333) < 0.1
+        assert abs(child2.layout.y - 56.666) < 0.1
+
+    def test_align_content_space_evenly_single_line(self):
+        """Align-content: space-evenly with single line centers it."""
+        parent = LayoutNode(
+            style=FlexStyle(
+                flex_direction=FlexDirection.ROW,
+                flex_wrap=FlexWrap.WRAP,
+                align_content=AlignContent.SPACE_EVENLY,
+            )
+        )
+
+        child = LayoutNode(style=FlexStyle(width=Dimension.points(60), height=Dimension.points(30)))
+        parent.add_child(child)
+
+        compute_layout(parent, Size(width=100, height=100))
+
+        # Single line with space-evenly: 2 gaps (before and after)
+        # Remaining: 100 - 30 = 70, each gap: 70 / 2 = 35
+        assert abs(child.layout.y - 35) < 0.1
+
     def test_align_content_no_effect_single_line(self):
         """Align-content has no effect on single-line containers."""
         parent = LayoutNode(
