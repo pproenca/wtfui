@@ -80,6 +80,66 @@ class Element:
 
         return node
 
+    def to_render_node_with_layout(self, layout_node: LayoutNode) -> RenderNode:
+        """Convert to RenderNode with computed layout positions.
+
+        Takes a LayoutNode (after compute_layout) and merges the computed
+        positions and dimensions into the RenderNode's style prop.
+
+        Args:
+            layout_node: The corresponding LayoutNode with computed layout.
+
+        Returns:
+            RenderNode with layout positions in the style prop.
+        """
+        from flow.renderer.protocol import RenderNode
+
+        # Get computed layout
+        layout = layout_node.layout
+
+        # Build layout style dict (format as int if whole number)
+        def fmt(v: float) -> str:
+            return f"{int(v)}px" if v == int(v) else f"{v}px"
+
+        layout_style = {
+            "position": "absolute",
+            "top": fmt(layout.y),
+            "left": fmt(layout.x),
+            "width": fmt(layout.width),
+            "height": fmt(layout.height),
+        }
+
+        # Merge with existing props
+        props = dict(self.props)
+        existing_style = props.get("style", {})
+        if isinstance(existing_style, dict):
+            layout_style.update(existing_style)
+        props["style"] = layout_style
+
+        node = RenderNode(
+            tag=self.tag,
+            element_id=id(self),
+            props=props,
+        )
+
+        # Handle text content (Text elements)
+        if hasattr(self, "content") and self.content:
+            node.text_content = str(self.content)
+
+        # Handle button labels
+        if hasattr(self, "label") and self.label:
+            node.label = str(self.label)
+
+        # Recursively convert children with their layout
+        for i, child in enumerate(self.children):
+            if i < len(layout_node.children):
+                child_render = child.to_render_node_with_layout(layout_node.children[i])
+            else:
+                child_render = child.to_render_node()
+            node.children.append(child_render)
+
+        return node
+
     def get_layout_style(self) -> FlexStyle:
         """Convert element props to a FlexStyle for layout computation.
 

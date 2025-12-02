@@ -24,6 +24,7 @@ class Flex(Element):
 
     Provides a convenient way to create flex containers with typed parameters.
     All layout properties are passed to the underlying FlexStyle.
+    Can also be a flex item when nested (supports flex_grow/flex_shrink).
     """
 
     def __init__(
@@ -37,6 +38,8 @@ class Flex(Element):
         width: float | str | None = None,
         height: float | str | None = None,
         padding: float | tuple[float, ...] | None = None,
+        flex_grow: float = 0,
+        flex_shrink: float = 1,
         **props: Any,
     ) -> None:
         # Convert to element props
@@ -49,6 +52,8 @@ class Flex(Element):
             width=width,
             height=height,
             padding=padding,
+            flex_grow=flex_grow,
+            flex_shrink=flex_shrink,
             **props,
         )
         self._direction = direction
@@ -59,6 +64,8 @@ class Flex(Element):
         self._width = width
         self._height = height
         self._padding = padding
+        self._flex_grow = flex_grow
+        self._flex_shrink = flex_shrink
 
     def get_layout_style(self) -> FlexStyle:
         """Get the FlexStyle for this Flex container."""
@@ -79,6 +86,8 @@ class Flex(Element):
             width=_parse_dimension(self._width),
             height=_parse_dimension(self._height),
             padding=_parse_spacing(self._padding),
+            flex_grow=self._flex_grow,
+            flex_shrink=self._flex_shrink,
         )
 
     def to_layout_node(self) -> LayoutNode:
