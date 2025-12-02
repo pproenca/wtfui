@@ -80,6 +80,7 @@ class AlignContent(Enum):
     STRETCH = "stretch"
     SPACE_BETWEEN = "space-between"
     SPACE_AROUND = "space-around"
+    SPACE_EVENLY = "space-evenly"  # Matches Yoga's Align::SpaceEvenly
 
 
 class Position(Enum):

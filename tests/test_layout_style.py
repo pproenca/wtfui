@@ -67,6 +67,26 @@ class TestAlignContent:
         assert AlignContent.STRETCH.value == "stretch"
         assert AlignContent.SPACE_BETWEEN.value == "space-between"
         assert AlignContent.SPACE_AROUND.value == "space-around"
+        assert AlignContent.SPACE_EVENLY.value == "space-evenly"
+
+
+class TestAlignContentSpaceEvenly:
+    """Tests for AlignContent.SPACE_EVENLY (Yoga parity)."""
+
+    def test_space_evenly_exists(self):
+        """AlignContent.SPACE_EVENLY distributes space evenly."""
+        assert AlignContent.SPACE_EVENLY.value == "space-evenly"
+
+    def test_all_align_content_values(self):
+        """Verify all align-content values match Yoga's Align enum."""
+        values = [ac.value for ac in AlignContent]
+        assert "flex-start" in values
+        assert "flex-end" in values
+        assert "center" in values
+        assert "stretch" in values
+        assert "space-between" in values
+        assert "space-around" in values
+        assert "space-evenly" in values  # NEW
 
 
 class TestPosition:
