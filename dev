@@ -39,7 +39,7 @@ print_warning() {
 # Command: setup
 cmd_setup() {
     print_info "Installing dependencies..."
-    uv sync --dev
+    uv sync --extra dev
     print_success "Dependencies installed!"
 
     if [ ! -f ".git/hooks/pre-commit" ]; then
@@ -51,7 +51,7 @@ cmd_setup() {
 
 # Command: start (dev server)
 cmd_start() {
-    local app_path="${1:-app:app}"
+    local app_path="${1:-examples.todo.app:app}"
     print_info "Starting dev server..."
     echo -e "${CYAN}   App: ${app_path}${NC}"
     echo -e "${CYAN}   URL: http://127.0.0.1:8000${NC}\n"
@@ -74,7 +74,7 @@ cmd_test_cov() {
 
 # Command: build
 cmd_build() {
-    local app_path="${1:-app:app}"
+    local app_path="${1:-examples.todo.app:app}"
     local output="${2:-dist}"
     print_info "Building for production..."
     uv run flow build "$app_path" -o "$output"
@@ -152,7 +152,7 @@ show_menu() {
         "Quit"
     )
 
-    PS3=$'\n'"${CYAN}Enter choice [1-${#options[@]}]:${NC} "
+    PS3=$'\n\033[0;36mEnter choice [1-'"${#options[@]}"$']:\033[0m '
 
     select opt in "${options[@]}"; do
         case $opt in
@@ -161,7 +161,9 @@ show_menu() {
                 break
                 ;;
             "Start"*)
-                cmd_start
+                echo -n "App path (Enter for examples.todo.app:app): "
+                read -r app_path
+                cmd_start "${app_path:-examples.todo.app:app}"
                 break
                 ;;
             "Test"*)
@@ -176,9 +178,9 @@ show_menu() {
                 break
                 ;;
             "Build"*)
-                echo -n "App path (Enter for app:app): "
+                echo -n "App path (Enter for examples.todo.app:app): "
                 read -r app_path
-                cmd_build "${app_path:-app:app}"
+                cmd_build "${app_path:-examples.todo.app:app}"
                 break
                 ;;
             "Lint"*)

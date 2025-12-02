@@ -33,13 +33,27 @@ def dev(app_path: str, host: str, port: int, reload: bool) -> None:
 
     # Import the app and run it
     try:
+        # Add current directory to sys.path so local modules can be imported
+        cwd = str(Path.cwd())
+        if cwd not in sys.path:
+            sys.path.insert(0, cwd)
+
         module_path, app_name = app_path.split(":")
         module = __import__(module_path, fromlist=[app_name])
-        app_component = getattr(module, app_name)
+        app_obj = getattr(module, app_name)
 
-        from flow.server import run_app
+        import uvicorn
+        from fastapi import FastAPI
 
-        run_app(app_component, host=host, port=port)
+        # Check if it's already a FastAPI app or needs wrapping
+        if isinstance(app_obj, FastAPI):
+            # Already a FastAPI app (created via create_app)
+            uvicorn.run(app_obj, host=host, port=port)
+        else:
+            # It's a component, wrap it
+            from flow.server import run_app
+
+            run_app(app_obj, host=host, port=port)
     except ValueError:
         click.echo(f"Error: Invalid app path '{app_path}'. Use format 'module:app'", err=True)
         sys.exit(1)
