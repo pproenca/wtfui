@@ -131,3 +131,89 @@ class TestIsBaselineLayout:
             ),
         )
         assert not is_baseline_layout(node)
+
+
+class TestBaselineAlignment:
+    """Tests for baseline alignment in compute_layout."""
+
+    def test_baseline_alignment_row(self):
+        """Items with baseline alignment align on their baselines."""
+        from flow.layout.compute import compute_layout
+        from flow.layout.types import Size
+
+        parent = LayoutNode(
+            style=FlexStyle(
+                width=Dimension.points(300),
+                height=Dimension.points(100),
+                flex_direction=FlexDirection.ROW,
+                align_items=AlignItems.BASELINE,
+            )
+        )
+
+        # Small text (baseline at 80% of height)
+        small_text = LayoutNode(
+            style=FlexStyle(width=Dimension.points(50), height=Dimension.points(20)),
+            baseline_func=lambda w, h: h * 0.8,  # baseline at 16
+        )
+
+        # Large text (baseline at 80% of height)
+        large_text = LayoutNode(
+            style=FlexStyle(width=Dimension.points(100), height=Dimension.points(40)),
+            baseline_func=lambda w, h: h * 0.8,  # baseline at 32
+        )
+
+        parent.add_child(small_text)
+        parent.add_child(large_text)
+
+        compute_layout(parent, Size(300, 100))
+
+        # Both baselines should align
+        # Large text baseline = y + 32
+        # Small text baseline = y + 16
+        # For baselines to align: small_y + 16 = large_y + 32
+        # If large_text.y = 0, then small_text.y = 16
+
+        small_baseline = small_text.layout.y + 16
+        large_baseline = large_text.layout.y + 32
+
+        assert abs(small_baseline - large_baseline) < 0.01
+
+    def test_baseline_with_align_self_override(self):
+        """Child with align-self overrides parent's baseline alignment."""
+        from flow.layout.compute import compute_layout
+        from flow.layout.types import Size
+
+        parent = LayoutNode(
+            style=FlexStyle(
+                width=Dimension.points(200),
+                height=Dimension.points(100),
+                flex_direction=FlexDirection.ROW,
+                align_items=AlignItems.BASELINE,
+            )
+        )
+
+        # Tall child with baseline at 80% (32px from top)
+        baseline_child = LayoutNode(
+            style=FlexStyle(width=Dimension.points(50), height=Dimension.points(40)),
+            baseline_func=lambda w, h: h * 0.8,  # baseline at 32
+        )
+
+        # Short child with center alignment (should be centered within line)
+        centered_child = LayoutNode(
+            style=FlexStyle(
+                width=Dimension.points(50),
+                height=Dimension.points(20),
+                align_self=AlignItems.CENTER,  # Override
+            ),
+        )
+
+        parent.add_child(baseline_child)
+        parent.add_child(centered_child)
+
+        compute_layout(parent, Size(200, 100))
+
+        # Line height is determined by tallest child = 40
+        # baseline_child has baseline at 32, no offset needed
+        # centered_child should be centered in line: (40 - 20) / 2 = 10
+        assert baseline_child.layout.y == 0
+        assert abs(centered_child.layout.y - 10) < 0.01

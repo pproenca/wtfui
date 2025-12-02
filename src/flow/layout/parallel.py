@@ -20,7 +20,7 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import TYPE_CHECKING
 
 from flow.layout.algorithm import (
-    align_cross_axis,
+    align_cross_axis_with_baseline,
     distribute_justify_content,
     resolve_flexible_lengths,
 )
@@ -229,10 +229,12 @@ def _layout_children_parallel(node: LayoutNode, executor: ThreadPoolExecutor) ->
 
         line.cross_size = max(cross_sizes) if cross_sizes else container_cross
 
-        cross_results = align_cross_axis(
+        cross_results = align_cross_axis_with_baseline(
+            items=line.items,
             item_sizes=cross_sizes,
             container_cross=line.cross_size,
             align=style.align_items,
+            is_row=is_row,
         )
 
         line_data.append((main_sizes, main_positions, cross_results))

@@ -273,10 +273,114 @@ def align_cross_axis(
 
         elif align == AlignItems.BASELINE:
             # Baseline alignment needs text metrics - default to flex-start
+            # Use align_cross_axis_with_baseline for proper baseline handling
             results.append((0, size))
 
         else:
             results.append((0, size))
+
+    return results
+
+
+def align_cross_axis_with_baseline(
+    items: list[LayoutNode],
+    item_sizes: list[float],
+    container_cross: float,
+    align: AlignItems,
+    is_row: bool,
+) -> list[tuple[float, float]]:
+    """Calculate cross-axis position and size with baseline alignment support.
+
+    This function handles baseline alignment properly by calculating actual
+    baselines for items that have baseline_func.
+
+    Args:
+        items: List of LayoutNodes.
+        item_sizes: List of item sizes in the cross axis.
+        container_cross: Total container size in the cross axis.
+        align: Default AlignItems value for items without align_self.
+        is_row: True if flex direction is row (horizontal).
+
+    Returns:
+        List of (position, size) tuples for each item.
+    """
+    from flow.layout.style import AlignItems
+
+    if not items:
+        return []
+
+    results: list[tuple[float, float]] = []
+
+    # Check if we need baseline alignment
+    needs_baseline = is_row and (
+        align == AlignItems.BASELINE
+        or any(item.style.align_self == AlignItems.BASELINE for item in items)
+    )
+
+    if needs_baseline:
+        # Calculate baselines for all items that participate in baseline alignment
+        baselines: list[float] = []
+        max_baseline = 0.0
+
+        for item, size in zip(items, item_sizes, strict=True):
+            effective_align = item.style.align_self or align
+            if effective_align == AlignItems.BASELINE:
+                # Calculate baseline for this item
+                # We need to temporarily set layout dimensions for baseline calculation
+                if item.has_baseline_func() and item.baseline_func is not None:
+                    baseline = item.baseline_func(item.layout.width or size, size)
+                else:
+                    # No baseline_func, use bottom of element as baseline
+                    baseline = size
+                baselines.append(baseline)
+                max_baseline = max(max_baseline, baseline)
+            else:
+                baselines.append(-1)  # Marker for non-baseline items
+
+        # Calculate positions
+        for i, (item, size) in enumerate(zip(items, item_sizes, strict=True)):
+            effective_align = item.style.align_self or align
+
+            if effective_align == AlignItems.BASELINE and baselines[i] >= 0:
+                # Position so baseline aligns with max_baseline
+                pos = max_baseline - baselines[i]
+                results.append((pos, size))
+
+            elif effective_align == AlignItems.STRETCH:
+                results.append((0, container_cross))
+
+            elif effective_align == AlignItems.FLEX_START:
+                results.append((0, size))
+
+            elif effective_align == AlignItems.FLEX_END:
+                results.append((container_cross - size, size))
+
+            elif effective_align == AlignItems.CENTER:
+                pos = (container_cross - size) / 2
+                results.append((pos, size))
+
+            else:
+                results.append((0, size))
+    else:
+        # No baseline alignment needed, use simple per-item alignment
+        for item, size in zip(items, item_sizes, strict=True):
+            effective_align = item.style.align_self or align
+
+            if effective_align == AlignItems.STRETCH:
+                results.append((0, container_cross))
+
+            elif effective_align == AlignItems.FLEX_START:
+                results.append((0, size))
+
+            elif effective_align == AlignItems.FLEX_END:
+                results.append((container_cross - size, size))
+
+            elif effective_align == AlignItems.CENTER:
+                pos = (container_cross - size) / 2
+                results.append((pos, size))
+
+            else:
+                results.append((0, size))
 
     return results
 

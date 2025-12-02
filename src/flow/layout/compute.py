@@ -6,7 +6,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from flow.layout.algorithm import (
-    align_cross_axis,
+    align_cross_axis_with_baseline,
     apply_auto_margins,
     distribute_justify_content,
     resolve_flexible_lengths,
@@ -262,10 +262,13 @@ def _layout_children(node: LayoutNode) -> None:
         line.cross_size = max(cross_sizes) if cross_sizes else container_cross
 
         # Get cross axis positions (align-items within line)
-        cross_results = align_cross_axis(
+        # Use baseline-aware alignment to handle align-items: baseline
+        cross_results = align_cross_axis_with_baseline(
+            items=line.items,
             item_sizes=cross_sizes,
             container_cross=line.cross_size,
             align=style.align_items,
+            is_row=is_row,
         )
 
         line_data.append((main_sizes, main_positions, cross_results))
