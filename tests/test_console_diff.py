@@ -82,3 +82,46 @@ def test_diff_respects_style_changes():
     result = diff_buffers(buf_a, buf_b)
 
     assert len(result.changes) == 1
+
+
+def test_diff_italic_style():
+    """Italic style changes are detected and emitted."""
+    buf_a = Buffer(width=10, height=5)
+    buf_b = Buffer(width=10, height=5)
+
+    buf_b.set(0, 0, Cell(char="I", italic=True))
+
+    result = diff_buffers(buf_a, buf_b)
+
+    assert len(result.changes) == 1
+    # ANSI italic is ESC[3m
+    assert "\x1b[3m" in result.ansi_output
+
+
+def test_diff_underline_style():
+    """Underline style changes are detected and emitted."""
+    buf_a = Buffer(width=10, height=5)
+    buf_b = Buffer(width=10, height=5)
+
+    buf_b.set(0, 0, Cell(char="U", underline=True))
+
+    result = diff_buffers(buf_a, buf_b)
+
+    assert len(result.changes) == 1
+    # ANSI underline is ESC[4m
+    assert "\x1b[4m" in result.ansi_output
+
+
+def test_diff_italic_to_non_italic_resets():
+    """Transitioning from italic to non-italic requires reset."""
+    buf_a = Buffer(width=10, height=5)
+    buf_b = Buffer(width=10, height=5)
+
+    buf_a.set(0, 0, Cell(char="A", italic=True))
+    buf_b.set(0, 0, Cell(char="A", italic=False))
+
+    result = diff_buffers(buf_a, buf_b)
+
+    assert len(result.changes) == 1
+    # Should include reset sequence ESC[0m
+    assert "\x1b[0m" in result.ansi_output

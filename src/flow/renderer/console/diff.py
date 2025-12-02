@@ -47,6 +47,8 @@ def diff_buffers(old: Buffer, new: Buffer) -> DiffResult:
     last_bg: tuple[int, int, int] | None = None
     last_bold: bool = False
     last_dim: bool = False
+    last_italic: bool = False
+    last_underline: bool = False
 
     # Track cursor position to minimize cursor movements
     cursor_x: int = -1
@@ -65,13 +67,17 @@ def diff_buffers(old: Buffer, new: Buffer) -> DiffResult:
                     output_parts.append(ansi.cursor_move(x, y))
 
                 # Apply style changes
-                style_parts = _build_style_sequence(new_cell, last_fg, last_bg, last_bold, last_dim)
+                style_parts = _build_style_sequence(
+                    new_cell, last_fg, last_bg, last_bold, last_dim, last_italic, last_underline
+                )
                 if style_parts:
                     output_parts.append(style_parts)
                     last_fg = new_cell.fg
                     last_bg = new_cell.bg
                     last_bold = new_cell.bold
                     last_dim = new_cell.dim
+                    last_italic = new_cell.italic
+                    last_underline = new_cell.underline
 
                 # Write character
                 output_parts.append(new_cell.char)
@@ -96,12 +102,19 @@ def _build_style_sequence(
     last_bg: tuple[int, int, int] | None,
     last_bold: bool,
     last_dim: bool,
+    last_italic: bool,
+    last_underline: bool,
 ) -> str:
     """Build ANSI style sequence, only including changed attributes."""
     parts: list[str] = []
 
     # Check if we need to reset (style attributes going from on to off)
-    need_reset = (last_bold and not cell.bold) or (last_dim and not cell.dim)
+    need_reset = (
+        (last_bold and not cell.bold)
+        or (last_dim and not cell.dim)
+        or (last_italic and not cell.italic)
+        or (last_underline and not cell.underline)
+    )
 
     if need_reset:
         parts.append(ansi.reset_style())
@@ -114,6 +127,10 @@ def _build_style_sequence(
             parts.append(ansi.set_bold())
         if cell.dim:
             parts.append(ansi.set_dim())
+        if cell.italic:
+            parts.append(ansi.set_italic())
+        if cell.underline:
+            parts.append(ansi.set_underline())
     else:
         # Only emit changed attributes
         if cell.fg != last_fg and cell.fg:
@@ -124,5 +141,9 @@ def _build_style_sequence(
             parts.append(ansi.set_bold())
         if cell.dim and not last_dim:
             parts.append(ansi.set_dim())
+        if cell.italic and not last_italic:
+            parts.append(ansi.set_italic())
+        if cell.underline and not last_underline:
+            parts.append(ansi.set_underline())
 
     return "".join(parts)
