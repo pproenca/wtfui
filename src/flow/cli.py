@@ -51,26 +51,62 @@ def dev(app_path: str, host: str, port: int, reload: bool) -> None:
 @cli.command()
 @click.argument("app_path", type=str, required=False, default="app:app")
 @click.option("--output", "-o", default="dist", help="Output directory")
-def build(app_path: str, output: str) -> None:
+@click.option("--title", default="Flow App", help="HTML page title")
+def build(app_path: str, output: str, title: str) -> None:
     """Build the app for production (SSR + Wasm).
 
     APP_PATH: Module path to your app (e.g., 'myapp:app')
     """
+    from flow.build.artifacts import (
+        generate_client_bundle,
+        generate_html_shell,
+    )
+
     click.echo(f"📦 Building Flow app: {app_path}")
     click.echo(f"   Output: {output}/")
+
+    # Parse app path
+    try:
+        module_name, _ = app_path.split(":")
+    except ValueError:
+        click.echo(f"Error: Invalid app path '{app_path}'. Use format 'module:app'", err=True)
+        sys.exit(1)
 
     output_path = Path(output)
     output_path.mkdir(parents=True, exist_ok=True)
 
-    # TODO: Implement build steps:
-    # 1. AST split server/client code
-    # 2. Generate server bundle
-    # 3. Compile client to Wasm (with PyScript/Pyodide)
-    # 4. Generate HTML shell
+    # 1. Find the source file
+    source_file = None
+    for search_path in sys.path:
+        candidate = Path(search_path) / f"{module_name}.py"
+        if candidate.exists():
+            source_file = candidate
+            break
+
+    if source_file is None:
+        click.echo(f"Error: Could not find source file for '{module_name}'", err=True)
+        sys.exit(1)
+
+    click.echo(f"   Source: {source_file}")
+
+    # 2. Generate client bundle (server code stripped)
+    client_dir = output_path / "client"
+    client_dir.mkdir(parents=True, exist_ok=True)
+
+    source_code = source_file.read_text()
+    client_file = client_dir / f"{module_name}.py"
+    generate_client_bundle(source_code, client_file)
+    click.echo(f"   Client bundle: {client_file}")
+
+    # 3. Generate HTML shell with Pyodide loader
+    html_content = generate_html_shell(app_module=module_name, title=title)
+    index_file = output_path / "index.html"
+    index_file.write_text(html_content)
+    click.echo(f"   HTML shell: {index_file}")
 
     click.echo("✅ Build complete!")
-    click.echo(f"   Server: {output}/server/")
-    click.echo(f"   Client: {output}/client/")
+    click.echo("\nTo serve locally:")
+    click.echo(f"   cd {output} && python -m http.server")
 
 
 @cli.command()
