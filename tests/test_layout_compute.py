@@ -550,3 +550,158 @@ class TestDisplayNone:
         # Fixed-size child
         assert child4.layout.width == 150
         assert child4.layout.x == 250
+
+
+class TestRTLLayout:
+    """Tests for RTL direction support (Task 4.2)."""
+
+    def test_row_rtl_reverses_children(self):
+        """Row direction in RTL lays out children right-to-left."""
+        from flow.layout.style import Direction
+
+        parent = LayoutNode(
+            style=FlexStyle(
+                width=Dimension.points(300),
+                height=Dimension.points(100),
+                flex_direction=FlexDirection.ROW,
+                direction=Direction.RTL,
+            )
+        )
+        child1 = LayoutNode(style=FlexStyle(width=Dimension.points(100)))
+        child2 = LayoutNode(style=FlexStyle(width=Dimension.points(100)))
+
+        parent.add_child(child1)
+        parent.add_child(child2)
+
+        compute_layout(parent, Size(300, 100))
+
+        # In RTL, first child appears on the right side
+        assert child1.layout.x == 200  # 300 - 100
+        assert child2.layout.x == 100  # 300 - 100 - 100
+
+    def test_row_ltr_normal_order(self):
+        """Row direction in LTR lays out children left-to-right (default)."""
+        from flow.layout.style import Direction
+
+        parent = LayoutNode(
+            style=FlexStyle(
+                width=Dimension.points(300),
+                height=Dimension.points(100),
+                flex_direction=FlexDirection.ROW,
+                direction=Direction.LTR,
+            )
+        )
+        child1 = LayoutNode(style=FlexStyle(width=Dimension.points(100)))
+        child2 = LayoutNode(style=FlexStyle(width=Dimension.points(100)))
+
+        parent.add_child(child1)
+        parent.add_child(child2)
+
+        compute_layout(parent, Size(300, 100))
+
+        # In LTR, first child appears on the left side
+        assert child1.layout.x == 0
+        assert child2.layout.x == 100
+
+    def test_column_rtl_unchanged(self):
+        """Column direction is not affected by RTL."""
+        from flow.layout.style import Direction
+
+        parent = LayoutNode(
+            style=FlexStyle(
+                width=Dimension.points(100),
+                height=Dimension.points(300),
+                flex_direction=FlexDirection.COLUMN,
+                direction=Direction.RTL,
+            )
+        )
+        child1 = LayoutNode(style=FlexStyle(height=Dimension.points(100)))
+        child2 = LayoutNode(style=FlexStyle(height=Dimension.points(100)))
+
+        parent.add_child(child1)
+        parent.add_child(child2)
+
+        compute_layout(parent, Size(100, 300))
+
+        # Column layout is unaffected by RTL
+        assert child1.layout.y == 0
+        assert child2.layout.y == 100
+
+    def test_row_reverse_rtl_becomes_normal(self):
+        """Row-reverse in RTL becomes normal row order."""
+        from flow.layout.style import Direction
+
+        parent = LayoutNode(
+            style=FlexStyle(
+                width=Dimension.points(300),
+                height=Dimension.points(100),
+                flex_direction=FlexDirection.ROW_REVERSE,
+                direction=Direction.RTL,
+            )
+        )
+        child1 = LayoutNode(style=FlexStyle(width=Dimension.points(100)))
+        child2 = LayoutNode(style=FlexStyle(width=Dimension.points(100)))
+
+        parent.add_child(child1)
+        parent.add_child(child2)
+
+        compute_layout(parent, Size(300, 100))
+
+        # In RTL, row-reverse becomes row (left-to-right)
+        assert child1.layout.x == 0
+        assert child2.layout.x == 100
+
+    def test_rtl_with_gap(self):
+        """RTL layout respects gap between children."""
+        from flow.layout.style import Direction
+
+        parent = LayoutNode(
+            style=FlexStyle(
+                width=Dimension.points(320),
+                height=Dimension.points(100),
+                flex_direction=FlexDirection.ROW,
+                direction=Direction.RTL,
+                gap=10.0,
+            )
+        )
+        child1 = LayoutNode(style=FlexStyle(width=Dimension.points(100)))
+        child2 = LayoutNode(style=FlexStyle(width=Dimension.points(100)))
+        child3 = LayoutNode(style=FlexStyle(width=Dimension.points(100)))
+
+        parent.add_child(child1)
+        parent.add_child(child2)
+        parent.add_child(child3)
+
+        compute_layout(parent, Size(320, 100))
+
+        # In RTL: child1 at right, child3 at left, with gaps
+        # Total: 3 items * 100px + 2 gaps * 10px = 320px (perfect fit)
+        assert child1.layout.x == 220  # 320 - 100 (rightmost)
+        assert child2.layout.x == 110  # 320 - 100 - 10 - 100
+        assert child3.layout.x == 0  # 320 - 100 - 10 - 100 - 10 - 100 (leftmost)
+
+    def test_rtl_with_flex_grow(self):
+        """RTL layout with flex-grow distributes space correctly."""
+        from flow.layout.style import Direction
+
+        parent = LayoutNode(
+            style=FlexStyle(
+                width=Dimension.points(300),
+                height=Dimension.points(100),
+                flex_direction=FlexDirection.ROW,
+                direction=Direction.RTL,
+            )
+        )
+        child1 = LayoutNode(style=FlexStyle(flex_grow=1.0))
+        child2 = LayoutNode(style=FlexStyle(flex_grow=1.0))
+
+        parent.add_child(child1)
+        parent.add_child(child2)
+
+        compute_layout(parent, Size(300, 100))
+
+        # Both children should split the space, but positioned RTL
+        assert child1.layout.width == 150
+        assert child2.layout.width == 150
+        assert child1.layout.x == 150  # First child on the right
+        assert child2.layout.x == 0  # Second child on the left

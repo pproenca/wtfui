@@ -10,6 +10,7 @@ from flow.layout.algorithm import (
     distribute_justify_content,
     resolve_flexible_lengths,
 )
+from flow.layout.direction import resolve_flex_direction
 from flow.layout.flexline import collect_flex_lines
 from flow.layout.intrinsic import (
     calculate_fit_content_height,
@@ -167,7 +168,9 @@ def _layout_children(node: LayoutNode) -> None:
     """Layout children using Flexbox algorithm."""
 
     style = node.style
-    direction = style.flex_direction
+
+    # Resolve flex direction based on layout direction (RTL/LTR)
+    direction = resolve_flex_direction(style.flex_direction, style.direction)
     is_row = direction.is_row()
 
     # Get container inner size (subtract padding and border)
@@ -298,6 +301,15 @@ def _layout_children(node: LayoutNode) -> None:
                 ):
                     cross_size = line.cross_size
                 cross_pos = 0
+
+            # Apply reverse direction by flipping positions
+            if direction.is_reverse():
+                if is_row:
+                    # In row-reverse, flip horizontally within container
+                    main_pos = container_main - main_pos - main_size
+                else:
+                    # In column-reverse, flip vertically within container
+                    main_pos = container_main - main_pos - main_size
 
             if is_row:
                 x = border.left + padding.left + main_pos
