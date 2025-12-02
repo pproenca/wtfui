@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from flow.layout.node import LayoutNode
-    from flow.layout.style import FlexDirection, JustifyContent
+    from flow.layout.style import AlignItems, FlexDirection, JustifyContent
 
 
 class SizingMode(Enum):
@@ -230,3 +230,52 @@ def distribute_justify_content(
             pos += size + spacing
 
     return positions
+
+
+def align_cross_axis(
+    item_sizes: list[float],
+    container_cross: float,
+    align: AlignItems,
+) -> list[tuple[float, float]]:
+    """Calculate cross-axis position and size for each item.
+
+    Implements CSS Flexbox spec section 9.6 (Cross-Axis Alignment):
+    https://www.w3.org/TR/css-flexbox-1/#algo-cross-align
+
+    Args:
+        item_sizes: List of item sizes in the cross axis.
+        container_cross: Total container size in the cross axis.
+        align: AlignItems value.
+
+    Returns:
+        List of (position, size) tuples for each item.
+    """
+    from flow.layout.style import AlignItems
+
+    if not item_sizes:
+        return []
+
+    results: list[tuple[float, float]] = []
+
+    for size in item_sizes:
+        if align == AlignItems.STRETCH:
+            results.append((0, container_cross))
+
+        elif align == AlignItems.FLEX_START:
+            results.append((0, size))
+
+        elif align == AlignItems.FLEX_END:
+            results.append((container_cross - size, size))
+
+        elif align == AlignItems.CENTER:
+            pos = (container_cross - size) / 2
+            results.append((pos, size))
+
+        elif align == AlignItems.BASELINE:
+            # Baseline alignment needs text metrics - default to flex-start
+            results.append((0, size))
+
+        else:
+            results.append((0, size))
+
+    return results

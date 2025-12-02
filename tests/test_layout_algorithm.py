@@ -6,7 +6,7 @@ from flow.layout.algorithm import (
     resolve_flexible_lengths,
 )
 from flow.layout.node import LayoutNode
-from flow.layout.style import FlexDirection, FlexStyle, JustifyContent
+from flow.layout.style import AlignItems, FlexDirection, FlexStyle, JustifyContent
 from flow.layout.types import Dimension
 
 
@@ -159,6 +159,76 @@ class TestResolveFlexibleLengths:
 
         assert sizes[0] == 50
         assert sizes[1] == 50
+
+
+class TestAlignItems:
+    def test_stretch(self):
+        """Items stretch to fill cross axis."""
+        from flow.layout.algorithm import align_cross_axis
+
+        results = align_cross_axis(
+            item_sizes=[30, 40, 20],  # Heights
+            container_cross=100,
+            align=AlignItems.STRETCH,
+        )
+        # All items get position 0 and size 100
+        assert results == [(0, 100), (0, 100), (0, 100)]
+
+    def test_flex_start(self):
+        """Items align to cross start."""
+        from flow.layout.algorithm import align_cross_axis
+
+        results = align_cross_axis(
+            item_sizes=[30, 40, 20],
+            container_cross=100,
+            align=AlignItems.FLEX_START,
+        )
+        assert results == [(0, 30), (0, 40), (0, 20)]
+
+    def test_flex_end(self):
+        """Items align to cross end."""
+        from flow.layout.algorithm import align_cross_axis
+
+        results = align_cross_axis(
+            item_sizes=[30, 40, 20],
+            container_cross=100,
+            align=AlignItems.FLEX_END,
+        )
+        assert results == [(70, 30), (60, 40), (80, 20)]
+
+    def test_center(self):
+        """Items centered on cross axis."""
+        from flow.layout.algorithm import align_cross_axis
+
+        results = align_cross_axis(
+            item_sizes=[30, 40, 20],
+            container_cross=100,
+            align=AlignItems.CENTER,
+        )
+        assert results == [(35, 30), (30, 40), (40, 20)]
+
+    def test_baseline_defaults_to_flex_start(self):
+        """Baseline alignment defaults to flex-start (needs text metrics)."""
+        from flow.layout.algorithm import align_cross_axis
+
+        results = align_cross_axis(
+            item_sizes=[30, 40],
+            container_cross=100,
+            align=AlignItems.BASELINE,
+        )
+        # Without text metrics, falls back to flex-start behavior
+        assert results == [(0, 30), (0, 40)]
+
+    def test_empty_items(self):
+        """Empty items list returns empty result."""
+        from flow.layout.algorithm import align_cross_axis
+
+        results = align_cross_axis(
+            item_sizes=[],
+            container_cross=100,
+            align=AlignItems.CENTER,
+        )
+        assert results == []
 
 
 class TestJustifyContent:
