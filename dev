@@ -66,6 +66,12 @@ cmd_test() {
     uv run pytest $test_args
 }
 
+# Command: test with coverage
+cmd_test_cov() {
+    print_info "Running tests with coverage..."
+    uv run pytest --cov=src/flow --cov-report=term-missing "$@"
+}
+
 # Command: build
 cmd_build() {
     local app_path="${1:-app:app}"
@@ -114,6 +120,7 @@ cmd_help() {
     echo -e "  ${CYAN}setup${NC}      Install dependencies and pre-commit hooks"
     echo -e "  ${CYAN}start${NC}      Start the development server"
     echo -e "  ${CYAN}test${NC}       Run tests (pass args: ./dev test -k 'test_name')"
+    echo -e "  ${CYAN}test:cov${NC}   Run tests with coverage report"
     echo -e "  ${CYAN}build${NC}      Build for production"
     echo -e "  ${CYAN}lint${NC}       Run linter, formatter, and type checker"
     echo -e "  ${CYAN}new${NC}        Create a new Flow project"
@@ -137,6 +144,7 @@ show_menu() {
         "Setup      - Install dependencies"
         "Start      - Start dev server"
         "Test       - Run tests"
+        "Test+Cov   - Run tests with coverage"
         "Build      - Build for production"
         "Lint       - Lint and format code"
         "New        - Create new project"
@@ -161,6 +169,10 @@ show_menu() {
                 read -r test_args
                 # shellcheck disable=SC2086  # Word splitting intentional for test args
                 cmd_test $test_args
+                break
+                ;;
+            "Test+Cov"*)
+                cmd_test_cov
                 break
                 ;;
             "Build"*)
@@ -218,6 +230,10 @@ main() {
         test)
             shift
             cmd_test "$@"
+            ;;
+        test:cov)
+            shift
+            cmd_test_cov "$@"
             ;;
         build)
             shift
