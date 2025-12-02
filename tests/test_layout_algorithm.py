@@ -1,7 +1,12 @@
 # tests/test_layout_algorithm.py
-from flow.layout.algorithm import AvailableSpace, SizingMode, resolve_flexible_lengths
+from flow.layout.algorithm import (
+    AvailableSpace,
+    SizingMode,
+    distribute_justify_content,
+    resolve_flexible_lengths,
+)
 from flow.layout.node import LayoutNode
-from flow.layout.style import FlexDirection, FlexStyle
+from flow.layout.style import FlexDirection, FlexStyle, JustifyContent
 from flow.layout.types import Dimension
 
 
@@ -154,3 +159,88 @@ class TestResolveFlexibleLengths:
 
         assert sizes[0] == 50
         assert sizes[1] == 50
+
+
+class TestJustifyContent:
+    def test_flex_start(self):
+        """Items align to start with no gaps."""
+        positions = distribute_justify_content(
+            item_sizes=[50, 50, 50],
+            container_size=300,
+            justify=JustifyContent.FLEX_START,
+            gap=0,
+        )
+        assert positions == [0, 50, 100]
+
+    def test_flex_end(self):
+        """Items align to end."""
+        positions = distribute_justify_content(
+            item_sizes=[50, 50, 50],
+            container_size=300,
+            justify=JustifyContent.FLEX_END,
+            gap=0,
+        )
+        assert positions == [150, 200, 250]
+
+    def test_center(self):
+        """Items centered in container."""
+        positions = distribute_justify_content(
+            item_sizes=[50, 50],
+            container_size=200,
+            justify=JustifyContent.CENTER,
+            gap=0,
+        )
+        assert positions == [50, 100]  # 50px on each side
+
+    def test_space_between(self):
+        """Space distributed between items."""
+        positions = distribute_justify_content(
+            item_sizes=[50, 50],
+            container_size=200,
+            justify=JustifyContent.SPACE_BETWEEN,
+            gap=0,
+        )
+        assert positions == [0, 150]
+
+    def test_space_around(self):
+        """Equal space around each item."""
+        positions = distribute_justify_content(
+            item_sizes=[50, 50],
+            container_size=200,
+            justify=JustifyContent.SPACE_AROUND,
+            gap=0,
+        )
+        # 100px free space, 2 items = 25px per side per item
+        assert positions == [25, 125]
+
+    def test_space_evenly(self):
+        """Equal space between items and edges."""
+        positions = distribute_justify_content(
+            item_sizes=[40, 40, 40],
+            container_size=200,
+            justify=JustifyContent.SPACE_EVENLY,
+            gap=0,
+        )
+        # 80px free space, 4 gaps = 20px each
+        assert positions == [20, 80, 140]
+
+    def test_with_gap(self):
+        """Gap affects free space calculation."""
+        positions = distribute_justify_content(
+            item_sizes=[50, 50],
+            container_size=200,
+            justify=JustifyContent.FLEX_START,
+            gap=20,
+        )
+        # Items at 0 and 50+20=70
+        assert positions == [0, 70]
+
+    def test_empty_items(self):
+        """Empty items list returns empty result."""
+        positions = distribute_justify_content(
+            item_sizes=[],
+            container_size=200,
+            justify=JustifyContent.CENTER,
+            gap=0,
+        )
+        assert positions == []

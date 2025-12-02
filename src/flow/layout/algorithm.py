@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from flow.layout.node import LayoutNode
-    from flow.layout.style import FlexDirection
+    from flow.layout.style import FlexDirection, JustifyContent
 
 
 class SizingMode(Enum):
@@ -153,3 +153,80 @@ def resolve_flexible_lengths(
             base + (free_space * (item.style.flex_shrink * base / total_shrink))
             for base, item in zip(bases, items, strict=False)
         ]
+
+
+def distribute_justify_content(
+    item_sizes: list[float],
+    container_size: float,
+    justify: JustifyContent,
+    gap: float,
+) -> list[float]:
+    """Calculate item positions along main axis based on justify-content.
+
+    Implements CSS Flexbox spec section 9.5 (Main-Axis Alignment):
+    https://www.w3.org/TR/css-flexbox-1/#algo-main-align
+
+    Args:
+        item_sizes: List of item sizes in the main axis.
+        container_size: Total container size in the main axis.
+        justify: JustifyContent value.
+        gap: Gap between items.
+
+    Returns:
+        List of positions for each item.
+    """
+    from flow.layout.style import JustifyContent
+
+    if not item_sizes:
+        return []
+
+    n = len(item_sizes)
+    total_item_size = sum(item_sizes)
+    total_gap = gap * (n - 1) if n > 1 else 0
+    free_space = container_size - total_item_size - total_gap
+
+    positions: list[float] = []
+
+    if justify == JustifyContent.FLEX_START:
+        pos = 0.0
+        for size in item_sizes:
+            positions.append(pos)
+            pos += size + gap
+
+    elif justify == JustifyContent.FLEX_END:
+        pos = free_space
+        for size in item_sizes:
+            positions.append(pos)
+            pos += size + gap
+
+    elif justify == JustifyContent.CENTER:
+        pos = free_space / 2
+        for size in item_sizes:
+            positions.append(pos)
+            pos += size + gap
+
+    elif justify == JustifyContent.SPACE_BETWEEN:
+        if n == 1:
+            positions.append(0.0)
+        else:
+            spacing = free_space / (n - 1)
+            pos = 0.0
+            for size in item_sizes:
+                positions.append(pos)
+                pos += size + spacing
+
+    elif justify == JustifyContent.SPACE_AROUND:
+        spacing = free_space / n
+        pos = spacing / 2
+        for size in item_sizes:
+            positions.append(pos)
+            pos += size + spacing
+
+    elif justify == JustifyContent.SPACE_EVENLY:
+        spacing = free_space / (n + 1)
+        pos = spacing
+        for size in item_sizes:
+            positions.append(pos)
+            pos += size + spacing
+
+    return positions
