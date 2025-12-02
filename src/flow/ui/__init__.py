@@ -11,11 +11,14 @@ from flow.ui.elements import (
     VStack,
     Window,
 )
+from flow.ui.layout import Box, Flex
 
 __all__ = [
+    "Box",
     "Button",
     "Card",
     "Div",
+    "Flex",
     "HStack",
     "Input",
     "Text",
