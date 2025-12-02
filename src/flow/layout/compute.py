@@ -26,6 +26,7 @@ from flow.layout.style import AlignContent, Position
 from flow.layout.types import Dimension, DimensionUnit
 
 if TYPE_CHECKING:
+    from flow.layout.node import MeasureMode
     from flow.layout.types import Size
 
 
@@ -40,12 +41,31 @@ def compute_layout(node: LayoutNode, available: Size) -> None:
         node: The root LayoutNode to compute layout for.
         available: Available Size (width, height) for the root node.
     """
+    from flow.layout.node import MeasureMode
+
     # Resolve node's own size
     style = node.style
 
+    # Handle leaf nodes with measure_func (text, images, etc.)
+    if node.measure_func is not None and not node.children:
+        measured_width, measured_height = _measure_node_with_cache(
+            node=node,
+            available_width=available.width,
+            available_height=available.height,
+            width_mode=MeasureMode.EXACTLY if style.width.is_defined() else MeasureMode.AT_MOST,
+            height_mode=MeasureMode.EXACTLY if style.height.is_defined() else MeasureMode.AT_MOST,
+        )
+        node.layout = LayoutResult(x=0, y=0, width=measured_width, height=measured_height)
+        node.clear_dirty()
+        return
+
     # Handle intrinsic dimensions
-    width = _resolve_dimension_with_intrinsic(style.width, available.width, node, is_width=True)
-    height = _resolve_dimension_with_intrinsic(style.height, available.height, node, is_width=False)
+    width: float | None = _resolve_dimension_with_intrinsic(
+        style.width, available.width, node, is_width=True
+    )
+    height: float | None = _resolve_dimension_with_intrinsic(
+        style.height, available.height, node, is_width=False
+    )
 
     # Apply aspect ratio if set
     if style.aspect_ratio is not None:
@@ -71,6 +91,65 @@ def compute_layout(node: LayoutNode, available: Size) -> None:
         _layout_children(node)
 
     node.clear_dirty()
+
+
+def _measure_node_with_cache(
+    node: LayoutNode,
+    available_width: float,
+    available_height: float,
+    width_mode: MeasureMode,
+    height_mode: MeasureMode,
+) -> tuple[float, float]:
+    """Measure a node with caching support.
+
+    Checks if cached measurement can be reused. If not, calls measure_func
+    and caches the result.
+
+    Args:
+        node: The node to measure.
+        available_width: Available width constraint.
+        available_height: Available height constraint.
+        width_mode: Width sizing mode.
+        height_mode: Height sizing mode.
+
+    Returns:
+        Tuple of (width, height) for the node.
+    """
+    from flow.layout.cache import can_use_cached_measurement
+    from flow.layout.node import CachedMeasurement
+
+    # Check if we can use cached result
+    if (
+        node.cached_measurement is not None
+        and not node.is_dirty()
+        and can_use_cached_measurement(
+            cache=node.cached_measurement,
+            available_width=available_width,
+            available_height=available_height,
+            width_mode=width_mode,
+            height_mode=height_mode,
+        )
+    ):
+        return (
+            node.cached_measurement.computed_width,
+            node.cached_measurement.computed_height,
+        )
+
+    # Call measure_func
+    assert node.measure_func is not None
+    result = node.measure_func(available_width, available_height)
+
+    # Cache the result
+    node.cached_measurement = CachedMeasurement(
+        available_width=available_width,
+        available_height=available_height,
+        width_mode=width_mode,
+        height_mode=height_mode,
+        computed_width=result.width,
+        computed_height=result.height,
+    )
+
+    return result.width, result.height
 
 
 def _clamp_size(

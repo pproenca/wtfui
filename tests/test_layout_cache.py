@@ -169,3 +169,87 @@ class TestCanUseCachedMeasurement:
             height_mode=MeasureMode.UNDEFINED,
         )
         assert result is True
+
+
+class TestCacheIntegration:
+    """Tests for cache integration in compute_layout."""
+
+    def test_measure_func_cached(self):
+        """measure_func results are cached for repeated layouts."""
+        from flow.layout.compute import compute_layout
+        from flow.layout.types import Dimension, Size
+
+        measure_count = [0]
+
+        def counting_measure(available_width: float, available_height: float) -> Size:
+            measure_count[0] += 1
+            return Size(width=50, height=30)
+
+        node = LayoutNode(
+            style=FlexStyle(
+                width=Dimension.points(100),
+                height=Dimension.points(100),
+            ),
+            measure_func=counting_measure,
+        )
+
+        # First layout - measure should be called
+        compute_layout(node, Size(100, 100))
+        assert measure_count[0] == 1
+        assert node.layout.width == 50
+        assert node.layout.height == 30
+
+        # Second layout with same constraints - measure should NOT be called
+        compute_layout(node, Size(100, 100))
+        assert measure_count[0] == 1  # Still 1
+
+    def test_cache_invalidated_on_dirty(self):
+        """Cache is invalidated when node is marked dirty."""
+        from flow.layout.compute import compute_layout
+        from flow.layout.types import Dimension, Size
+
+        measure_count = [0]
+
+        def counting_measure(available_width: float, available_height: float) -> Size:
+            measure_count[0] += 1
+            return Size(width=50, height=30)
+
+        node = LayoutNode(
+            style=FlexStyle(
+                width=Dimension.points(100),
+                height=Dimension.points(100),
+            ),
+            measure_func=counting_measure,
+        )
+
+        compute_layout(node, Size(100, 100))
+        assert measure_count[0] == 1
+
+        # Mark dirty - cache should be invalidated
+        node.mark_dirty()
+
+        compute_layout(node, Size(100, 100))
+        assert measure_count[0] == 2  # Measure called again
+
+    def test_cache_stored_after_layout(self):
+        """Layout stores cache for measured nodes."""
+        from flow.layout.compute import compute_layout
+        from flow.layout.types import Dimension, Size
+
+        def measure_func(available_width: float, available_height: float) -> Size:
+            return Size(width=50, height=30)
+
+        node = LayoutNode(
+            style=FlexStyle(
+                width=Dimension.points(100),
+                height=Dimension.points(100),
+            ),
+            measure_func=measure_func,
+        )
+
+        compute_layout(node, Size(100, 100))
+
+        # Cache should be populated
+        assert node.cached_measurement is not None
+        assert node.cached_measurement.computed_width == 50
+        assert node.cached_measurement.computed_height == 30
