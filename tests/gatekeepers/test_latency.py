@@ -6,9 +6,16 @@ invalidation and recomputation algorithms are O(N).
 Threshold: < 5ms for invalidating and recomputing 1,000 subscribers.
 """
 
+from typing import Any
+
 import pytest
 
 from flow import Computed, Signal
+
+# Test configuration constants
+FAN_WIDTH = 1_000  # Number of computed dependents for fan-out test
+MAX_TIME_MS = 5.0  # Maximum allowed propagation time in milliseconds
+UPDATE_ITERATIONS = 10_000  # Number of updates for no-subscriber test
 
 
 def create_fan_out(width: int) -> tuple[Signal[int], list[Computed[int]]]:
@@ -25,10 +32,12 @@ def create_fan_out(width: int) -> tuple[Signal[int], list[Computed[int]]]:
     root: Signal[int] = Signal(0)
 
     # All computeds depend on the root signal
-    # Create a proper function to avoid lambda type inference issues
+    # Use explicit default args to capture values at definition time
+    def make_computed(signal: Signal[int] = root, offset: int = 0) -> Computed[int]:
+        def compute(s: Signal[int] = signal, o: int = offset) -> int:
+            return s.value + o
 
-    def make_computed(r: Signal[int], idx: int) -> Computed[int]:
-        return Computed(lambda: r.value + idx)
+        return Computed(compute)
 
     computeds = [make_computed(root, i) for i in range(width)]
 
@@ -37,7 +46,7 @@ def create_fan_out(width: int) -> tuple[Signal[int], list[Computed[int]]]:
 
 @pytest.mark.gatekeeper
 @pytest.mark.benchmark(group="reactivity")
-def test_pulse_latency(benchmark) -> None:
+def test_pulse_latency(benchmark: Any) -> None:
     """
     Gatekeeper: Reactivity Propagation Speed.
 
@@ -47,9 +56,6 @@ def test_pulse_latency(benchmark) -> None:
     The fan-out pattern is more representative of real UI scenarios where
     one state update affects many components.
     """
-    FAN_WIDTH = 1_000
-    MAX_TIME_MS = 5.0
-
     root, computeds = create_fan_out(FAN_WIDTH)
 
     def run_propagation() -> int:
@@ -85,7 +91,7 @@ def test_signal_update_no_subscribers() -> None:
     signal: Signal[int] = Signal(0)
 
     # Update many times - should not accumulate cost
-    for i in range(10_000):
+    for i in range(UPDATE_ITERATIONS):
         signal.value = i
 
-    assert signal.value == 9_999
+    assert signal.value == UPDATE_ITERATIONS - 1

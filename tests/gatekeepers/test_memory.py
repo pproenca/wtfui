@@ -24,7 +24,7 @@ class ComplexItem(Div):
             cls=f"item-{idx} p-4 flex",
             id=f"node-{idx}",
         )
-        # Add a child text element
+        # Store index for potential child element creation
         self._idx = idx
 
 
