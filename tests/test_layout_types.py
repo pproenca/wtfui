@@ -1,5 +1,5 @@
 # tests/test_layout_types.py
-from flow.layout.types import Dimension, Edges, Rect, Size, Spacing
+from flow.layout.types import Border, Dimension, Edges, Rect, Size, Spacing
 
 
 class TestDimension:
@@ -116,3 +116,55 @@ class TestSpacing:
         assert resolved.right == 20  # 10% of 200
         assert resolved.bottom == 10
         assert resolved.left == 0  # auto resolves to 0 for spacing
+
+
+class TestBorder:
+    def test_border_creation(self):
+        border = Border(top=1, right=2, bottom=3, left=4)
+        assert border.top == 1
+        assert border.right == 2
+        assert border.bottom == 3
+        assert border.left == 4
+
+    def test_border_defaults(self):
+        border = Border()
+        assert border.top == 0
+        assert border.right == 0
+        assert border.bottom == 0
+        assert border.left == 0
+
+    def test_border_all(self):
+        border = Border.all(5)
+        assert border.top == 5
+        assert border.right == 5
+        assert border.bottom == 5
+        assert border.left == 5
+
+    def test_border_zero(self):
+        border = Border.zero()
+        assert border.top == 0
+        assert border.right == 0
+        assert border.bottom == 0
+        assert border.left == 0
+
+    def test_border_horizontal_property(self):
+        border = Border(top=1, right=2, bottom=3, left=4)
+        assert border.horizontal == 6  # left + right = 4 + 2
+
+    def test_border_vertical_property(self):
+        border = Border(top=1, right=2, bottom=3, left=4)
+        assert border.vertical == 4  # top + bottom = 1 + 3
+
+    def test_border_resolve(self):
+        border = Border(top=1, right=2, bottom=3, left=4)
+        edges = border.resolve()
+        assert isinstance(edges, Edges)
+        assert edges.top == 1
+        assert edges.right == 2
+        assert edges.bottom == 3
+        assert edges.left == 4
+
+    def test_border_resolve_zero(self):
+        border = Border.zero()
+        edges = border.resolve()
+        assert edges == Edges.zero()

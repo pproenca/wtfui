@@ -179,6 +179,49 @@ class Edges:
 
 
 @dataclass(frozen=True, slots=True)
+class Border:
+    """Border widths for layout box model."""
+
+    top: float = 0
+    right: float = 0
+    bottom: float = 0
+    left: float = 0
+
+    @classmethod
+    def all(cls, value: float) -> Border:
+        """Create border with equal values on all sides."""
+        return cls(value, value, value, value)
+
+    @classmethod
+    def zero(cls) -> Border:
+        """Create zero border."""
+        return cls(0, 0, 0, 0)
+
+    @property
+    def horizontal(self) -> float:
+        """Sum of left and right border widths."""
+        return self.left + self.right
+
+    @property
+    def vertical(self) -> float:
+        """Sum of top and bottom border widths."""
+        return self.top + self.bottom
+
+    def resolve(self) -> Edges:
+        """Convert border widths to edges.
+
+        Returns:
+            Edges with the same values as the border widths.
+        """
+        return Edges(
+            top=self.top,
+            right=self.right,
+            bottom=self.bottom,
+            left=self.left,
+        )
+
+
+@dataclass(frozen=True, slots=True)
 class Spacing:
     """Spacing with dimension values for each edge."""
 
