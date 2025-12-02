@@ -9,6 +9,7 @@ from flow.renderer.protocol import Renderer, RenderNode
 
 if TYPE_CHECKING:
     from flow.element import Element
+    from flow.layout.node import LayoutNode
 
 
 class HTMLRenderer(Renderer):
@@ -36,6 +37,19 @@ class HTMLRenderer(Renderer):
         node = element.to_render_node()
         return self.render_node(node)
 
+    def render_with_layout(self, element: Element, layout_node: LayoutNode) -> str:
+        """Render an element tree with computed layout positions.
+
+        Args:
+            element: The element tree to render.
+            layout_node: The layout node with computed positions (after compute_layout).
+
+        Returns:
+            HTML string with absolute positioning CSS from layout.
+        """
+        node = element.to_render_node_with_layout(layout_node)
+        return self.render_node(node)
+
     def render_node(self, node: RenderNode) -> str:
         """Render a RenderNode to HTML."""
         html_tag = self.TAG_MAP.get(node.tag, "div")
@@ -47,6 +61,11 @@ class HTMLRenderer(Renderer):
         for key, value in node.props.items():
             if key == "cls":
                 attrs_parts.append(f'class="{value}"')
+            elif key == "style" and isinstance(value, dict):
+                # Convert style dict to CSS string
+                css_str = self._style_dict_to_css(value)
+                if css_str:
+                    attrs_parts.append(f'style="{css_str}"')
             elif key.startswith("on_"):
                 # Event handlers are managed client-side
                 continue
@@ -84,3 +103,27 @@ class HTMLRenderer(Renderer):
         """Render text (with HTML escaping for safety)."""
         # Basic escaping for security
         return content.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+    def _style_dict_to_css(self, style: dict[str, str]) -> str:
+        """Convert a style dictionary to a CSS string.
+
+        Args:
+            style: Dict of CSS property names to values.
+
+        Returns:
+            CSS string like "position: absolute; top: 0px; left: 0px"
+        """
+
+        # Convert camelCase to kebab-case for CSS
+        def to_kebab(s: str) -> str:
+            result = []
+            for i, c in enumerate(s):
+                if c.isupper() and i > 0:
+                    result.append("-")
+                    result.append(c.lower())
+                else:
+                    result.append(c)
+            return "".join(result)
+
+        parts = [f"{to_kebab(k)}: {v}" for k, v in style.items()]
+        return "; ".join(parts)
