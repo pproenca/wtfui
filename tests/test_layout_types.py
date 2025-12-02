@@ -1,5 +1,5 @@
 # tests/test_layout_types.py
-from flow.layout.types import Dimension, Rect, Size
+from flow.layout.types import Dimension, Edges, Rect, Size, Spacing
 
 
 class TestDimension:
@@ -80,3 +80,39 @@ class TestFloatingPointPrecision:
         # Scale 2 = half-pixel grid (0, 0.5, 1.0, 1.5, ...)
         assert snap_to_pixel(10.3, scale=2) == 10.5
         assert snap_to_pixel(10.1, scale=2) == 10.0
+
+
+class TestEdges:
+    def test_edges_all(self):
+        edges = Edges.all(10)
+        assert edges.top == 10
+        assert edges.right == 10
+        assert edges.bottom == 10
+        assert edges.left == 10
+
+    def test_edges_symmetric(self):
+        edges = Edges.symmetric(horizontal=20, vertical=10)
+        assert edges.top == 10
+        assert edges.bottom == 10
+        assert edges.left == 20
+        assert edges.right == 20
+
+    def test_edges_horizontal_sum(self):
+        edges = Edges(top=5, right=10, bottom=15, left=20)
+        assert edges.horizontal == 30  # left + right
+        assert edges.vertical == 20  # top + bottom
+
+
+class TestSpacing:
+    def test_spacing_resolve(self):
+        spacing = Spacing(
+            top=Dimension.points(10),
+            right=Dimension.percent(10),
+            bottom=Dimension.points(10),
+            left=Dimension.auto(),
+        )
+        resolved = spacing.resolve(width=200, height=100)
+        assert resolved.top == 10
+        assert resolved.right == 20  # 10% of 200
+        assert resolved.bottom == 10
+        assert resolved.left == 0  # auto resolves to 0 for spacing
