@@ -1,0 +1,59 @@
+# tests/test_element.py
+"""Tests for Element base class - the foundation of all UI nodes."""
+
+from flow.context import get_current_parent
+from flow.element import Element
+
+
+def test_element_has_tag_from_class_name():
+    """Element tag defaults to class name."""
+    el = Element()
+    assert el.tag == "Element"
+
+
+def test_element_stores_props():
+    """Element stores arbitrary props."""
+    el = Element(cls="container", id="main")
+    assert el.props == {"cls": "container", "id": "main"}
+
+
+def test_element_starts_with_no_children():
+    """Element has empty children list."""
+    el = Element()
+    assert el.children == []
+
+
+def test_element_context_manager_sets_parent():
+    """Entering element sets it as current parent."""
+    el = Element()
+    assert get_current_parent() is None
+    with el:
+        assert get_current_parent() is el
+    assert get_current_parent() is None
+
+
+def test_element_nesting_builds_tree():
+    """Nested context managers build parent-child relationships."""
+    parent = Element()
+    child = Element()
+
+    with parent, child:
+        pass
+
+    assert child in parent.children
+    assert child.parent is parent
+
+
+def test_multiple_children():
+    """Multiple children can be added to a parent."""
+    parent = Element()
+    child1 = Element()
+    child2 = Element()
+
+    with parent:
+        with child1:
+            pass
+        with child2:
+            pass
+
+    assert parent.children == [child1, child2]
