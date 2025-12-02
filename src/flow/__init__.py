@@ -13,14 +13,18 @@ A Python UI framework based on these core principles:
 Requires Python 3.14+ for No-GIL (PEP 703) and PEP 649 (deferred annotations).
 """
 
+from flow.component import component
+from flow.computed import Computed
 from flow.effect import Effect
 from flow.element import Element
 from flow.signal import Signal
 
 __all__ = [
+    "Computed",
     "Effect",
     "Element",
     "Signal",
+    "component",
 ]
 
 __version__ = "0.1.0"
