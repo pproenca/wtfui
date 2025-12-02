@@ -40,6 +40,31 @@ DEFAULT_MAX_WORKERS = 4
 MIN_CHILDREN_FOR_PARALLEL = 3
 
 
+def find_layout_boundaries(root: LayoutNode) -> list[LayoutNode]:
+    """Find all Layout Boundary nodes in a tree.
+
+    A Layout Boundary is a node with explicit width AND height.
+    These nodes can be computed in parallel since their layout
+    doesn't depend on content size.
+
+    Args:
+        root: The root node to search from.
+
+    Returns:
+        List of Layout Boundary nodes (excluding root).
+    """
+    boundaries: list[LayoutNode] = []
+
+    def _find_recursive(node: LayoutNode, include_self: bool = False) -> None:
+        if include_self and node.is_layout_boundary():
+            boundaries.append(node)
+        for child in node.children:
+            _find_recursive(child, include_self=True)
+
+    _find_recursive(root, include_self=False)
+    return boundaries
+
+
 def compute_layout_parallel(
     node: LayoutNode,
     available: Size,

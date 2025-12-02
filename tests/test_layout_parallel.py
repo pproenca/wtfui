@@ -6,7 +6,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 from flow.layout.compute import compute_layout
 from flow.layout.node import LayoutNode
-from flow.layout.parallel import compute_layout_parallel
+from flow.layout.parallel import compute_layout_parallel, find_layout_boundaries
 from flow.layout.style import FlexDirection, FlexStyle
 from flow.layout.types import Dimension, Size
 
@@ -187,3 +187,95 @@ class TestParallelPerformance:
 
         total = count_nodes(root)
         assert total == 1111  # 1 + 10 + 100 + 1000
+
+
+class TestLayoutBoundaries:
+    """Tests for Layout Boundary detection (Amendment Gamma)."""
+
+    def test_find_boundaries_in_tree(self):
+        """Finds all Layout Boundary nodes in tree."""
+        root = LayoutNode(style=FlexStyle())
+
+        # Non-boundary children
+        child1 = LayoutNode(style=FlexStyle(flex_grow=1.0))
+
+        # Layout Boundary child (has explicit w & h)
+        child2 = LayoutNode(
+            style=FlexStyle(
+                width=Dimension.points(100),
+                height=Dimension.points(100),
+            )
+        )
+
+        # Grandchildren under boundary
+        grandchild = LayoutNode(style=FlexStyle(flex_grow=1.0))
+
+        root.add_child(child1)
+        root.add_child(child2)
+        child2.add_child(grandchild)
+
+        boundaries = find_layout_boundaries(root)
+
+        assert child2 in boundaries
+        assert root not in boundaries  # Root is not a boundary
+        assert child1 not in boundaries  # No fixed dimensions
+        assert grandchild not in boundaries  # No fixed dimensions
+
+    def test_node_is_layout_boundary(self):
+        """LayoutNode.is_layout_boundary() works correctly."""
+        # With explicit width and height
+        boundary = LayoutNode(
+            style=FlexStyle(
+                width=Dimension.points(100),
+                height=Dimension.points(50),
+            )
+        )
+        assert boundary.is_layout_boundary()
+
+        # Without explicit dimensions
+        non_boundary = LayoutNode(style=FlexStyle(flex_grow=1.0))
+        assert not non_boundary.is_layout_boundary()
+
+        # With only width
+        width_only = LayoutNode(style=FlexStyle(width=Dimension.points(100)))
+        assert not width_only.is_layout_boundary()
+
+        # With only height
+        height_only = LayoutNode(style=FlexStyle(height=Dimension.points(50)))
+        assert not height_only.is_layout_boundary()
+
+    def test_find_multiple_boundaries(self):
+        """Finds multiple boundaries at different depths."""
+        root = LayoutNode(style=FlexStyle())
+
+        b1 = LayoutNode(
+            style=FlexStyle(
+                width=Dimension.points(100),
+                height=Dimension.points(100),
+            )
+        )
+        b2 = LayoutNode(
+            style=FlexStyle(
+                width=Dimension.points(200),
+                height=Dimension.points(200),
+            )
+        )
+
+        root.add_child(b1)
+        root.add_child(b2)
+
+        # Nested boundary under b1
+        b3 = LayoutNode(
+            style=FlexStyle(
+                width=Dimension.points(50),
+                height=Dimension.points(50),
+            )
+        )
+        b1.add_child(b3)
+
+        boundaries = find_layout_boundaries(root)
+
+        assert len(boundaries) == 3
+        assert b1 in boundaries
+        assert b2 in boundaries
+        assert b3 in boundaries
