@@ -35,10 +35,9 @@ def test_element_context_manager_sets_parent():
 def test_element_nesting_builds_tree():
     """Nested context managers build parent-child relationships."""
     parent = Element()
-    child = Element()
 
-    with parent, child:
-        pass
+    with parent:
+        child = Element()  # Created INSIDE parent context
 
     assert child in parent.children
     assert child.parent is parent
@@ -47,14 +46,10 @@ def test_element_nesting_builds_tree():
 def test_multiple_children():
     """Multiple children can be added to a parent."""
     parent = Element()
-    child1 = Element()
-    child2 = Element()
 
     with parent:
-        with child1:
-            pass
-        with child2:
-            pass
+        child1 = Element()
+        child2 = Element()
 
     assert parent.children == [child1, child2]
 
