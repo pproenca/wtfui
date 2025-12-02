@@ -31,6 +31,20 @@ def is_free_threaded() -> bool:
     return bool(gil_disabled)
 
 
+def has_gil_incompatible_deps() -> bool:
+    """Check if any dependencies would re-enable the GIL.
+
+    Some packages like greenlet (used by asyncio/anyio) don't support
+    free-threading and will force the GIL back on when imported.
+    """
+    try:
+        import greenlet  # type: ignore[import-not-found]  # noqa: F401
+
+        return True  # greenlet re-enables GIL
+    except ImportError:
+        return False
+
+
 def run_heavy_layout(_: int) -> bool:
     """A CPU-bound task: Layout a deep tree.
 
@@ -48,12 +62,13 @@ def run_heavy_layout(_: int) -> bool:
 
 @pytest.mark.gatekeeper
 @pytest.mark.skipif(
-    sys.version_info < (3, 13),
-    reason="Requires Python 3.13+ for free-threading support",
+    sys.version_info < (3, 13) or not is_free_threaded(),
+    reason="Requires free-threaded Python 3.13+ (install with: uv python install 3.13t)",
 )
-@pytest.mark.skipif(
-    not is_free_threaded(),
-    reason="Requires free-threaded Python build (Py_GIL_DISABLED=1)",
+@pytest.mark.xfail(
+    condition=has_gil_incompatible_deps(),
+    reason="greenlet dependency re-enables GIL (awaiting ecosystem support)",
+    strict=False,
 )
 def test_no_gil_throughput() -> None:
     """

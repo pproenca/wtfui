@@ -8,6 +8,8 @@ Thresholds:
 - Security: Zero leakage of server libraries
 """
 
+import warnings
+
 import pytest
 
 from flow.compiler.transformer import transform_for_client
@@ -58,7 +60,10 @@ def test_ghost_bundle_audit() -> None:
     MAX_SIZE_KB = 50
 
     # Transform the source code (what build does internally)
-    content = transform_for_client(MOCK_APP_WITH_SERVER_CODE)
+    # Suppress expected UserWarning about removed server-only imports
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", message="Removed server-only import")
+        content = transform_for_client(MOCK_APP_WITH_SERVER_CODE)
 
     # 1. PURITY CHECK (Security)
     # These terms should be stripped from client bundle
@@ -117,7 +122,10 @@ async def App():
 app = App
 '''
 
-    content = transform_for_client(rpc_app)
+    # Suppress expected UserWarning about removed server-only imports
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", message="Removed server-only import")
+        content = transform_for_client(rpc_app)
 
     # Server implementation details should be gone
     # Note: the import os is removed by SERVER_ONLY_MODULES

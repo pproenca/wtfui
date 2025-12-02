@@ -49,6 +49,10 @@ addopts = [
 markers = [
     "gatekeeper: Critical performance and security tests (deselect with '-m \"not gatekeeper\"')",
 ]
+filterwarnings = [
+    "error",  # Treat warnings as errors by default
+    "ignore::pytest.PytestUnraisableExceptionWarning",
+]
 
 # ============================================================================
 # Ruff Configuration (Linting + Formatting)
