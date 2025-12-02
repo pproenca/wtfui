@@ -20,7 +20,7 @@ from flow.layout.intrinsic import (
     calculate_min_content_width,
 )
 from flow.layout.node import LayoutNode, LayoutResult
-from flow.layout.style import Position
+from flow.layout.style import AlignContent, Position
 from flow.layout.types import Dimension, DimensionUnit
 
 if TYPE_CHECKING:
@@ -198,8 +198,13 @@ def _layout_children(node: LayoutNode) -> None:
         direction=direction,
     )
 
-    # Resolve flexible lengths for each line
-    cross_offset = padding.top if is_row else padding.left
+    # Cross gap between lines
+    cross_gap = style.row_gap if is_row and style.row_gap is not None else style.gap
+    if not is_row and style.column_gap is not None:
+        cross_gap = style.column_gap
+
+    # First pass: calculate line cross sizes and main axis layout data
+    line_data: list[tuple[list[float], list[float], list[tuple[float, float]]]] = []
 
     for line in lines:
         # Get main axis sizes
@@ -224,31 +229,65 @@ def _layout_children(node: LayoutNode) -> None:
             if is_row:
                 h = item.style.height.resolve(container_cross)
                 if h is None and item.style.aspect_ratio is not None:
-                    # Calculate height from width using aspect ratio
                     h = main_sizes[idx] / item.style.aspect_ratio
                 cross_sizes.append(h if h else container_cross)
             else:
                 w = item.style.width.resolve(container_cross)
                 if w is None and item.style.aspect_ratio is not None:
-                    # Calculate width from height using aspect ratio
                     w = main_sizes[idx] * item.style.aspect_ratio
                 cross_sizes.append(w if w else container_cross)
 
         # Determine line cross size
         line.cross_size = max(cross_sizes) if cross_sizes else container_cross
 
-        # Get cross axis positions (align-items)
+        # Get cross axis positions (align-items within line)
         cross_results = align_cross_axis(
             item_sizes=cross_sizes,
             container_cross=line.cross_size,
             align=style.align_items,
         )
 
-        # Apply layouts to children
+        line_data.append((main_sizes, main_positions, cross_results))
+
+    # Calculate total lines cross size
+    total_lines_cross = sum(line.cross_size for line in lines)
+    total_lines_cross += cross_gap * max(0, len(lines) - 1)
+
+    # Apply align-content to determine line offsets
+    # Note: align-content only applies to multi-line containers (wrap enabled)
+    effective_align_content = style.align_content
+    if style.flex_wrap.is_no_wrap():
+        # Single-line container: align-content has no effect, use flex-start
+        effective_align_content = AlignContent.FLEX_START
+
+    line_offsets = _distribute_align_content(
+        line_sizes=[line.cross_size for line in lines],
+        container_cross=container_cross,
+        align_content=effective_align_content,
+        gap=cross_gap,
+    )
+
+    # Second pass: position items using calculated offsets
+    for line_idx, line in enumerate(lines):
+        main_sizes, main_positions, cross_results = line_data[line_idx]
+        cross_offset = (padding.top if is_row else padding.left) + line_offsets[line_idx]
+
+        # For stretch, update line cross size
+        if effective_align_content == AlignContent.STRETCH and len(lines) > 1:
+            line.cross_size = container_cross / len(lines)
+
         for i, item in enumerate(line.items):
             main_pos = main_positions[i]
             main_size = main_sizes[i]
             cross_pos, cross_size = cross_results[i]
+
+            # For align-content: stretch, expand items without explicit cross size
+            if effective_align_content == AlignContent.STRETCH and len(lines) > 1:
+                if (is_row and item.style.height.is_auto()) or (
+                    not is_row and item.style.width.is_auto()
+                ):
+                    cross_size = line.cross_size
+                cross_pos = 0
 
             if is_row:
                 x = padding.left + main_pos
@@ -267,17 +306,100 @@ def _layout_children(node: LayoutNode) -> None:
             if item.children:
                 _layout_children(item)
 
-        # Move cross offset for next line (for wrap)
-        # Row direction uses row_gap between lines, column uses column_gap
-        if is_row:
-            cross_gap = style.row_gap if style.row_gap is not None else style.gap
-        else:
-            cross_gap = style.column_gap if style.column_gap is not None else style.gap
-        cross_offset += line.cross_size + cross_gap
-
     # Layout absolute positioned children
     for abs_child in absolute_items:
         _layout_absolute_child(abs_child, node.layout.width, node.layout.height)
+
+
+def _distribute_align_content(
+    line_sizes: list[float],
+    container_cross: float,
+    align_content: AlignContent,
+    gap: float,
+) -> list[float]:
+    """Calculate line offsets based on align-content.
+
+    Args:
+        line_sizes: Cross size of each flex line.
+        container_cross: Available cross-axis space.
+        align_content: The align-content value.
+        gap: Gap between lines.
+
+    Returns:
+        List of offsets for each line from the cross-axis start.
+    """
+    from flow.layout.style import AlignContent
+
+    if not line_sizes:
+        return []
+
+    num_lines = len(line_sizes)
+    total_lines_size = sum(line_sizes)
+    total_gap = gap * max(0, num_lines - 1)
+    remaining = container_cross - total_lines_size - total_gap
+
+    offsets: list[float] = []
+
+    if align_content == AlignContent.FLEX_START:
+        # Lines packed at start
+        offset = 0.0
+        for size in line_sizes:
+            offsets.append(offset)
+            offset += size + gap
+
+    elif align_content == AlignContent.FLEX_END:
+        # Lines packed at end
+        offset = remaining
+        for size in line_sizes:
+            offsets.append(offset)
+            offset += size + gap
+
+    elif align_content == AlignContent.CENTER:
+        # Lines centered
+        offset = remaining / 2
+        for size in line_sizes:
+            offsets.append(offset)
+            offset += size + gap
+
+    elif align_content == AlignContent.SPACE_BETWEEN:
+        # First line at start, last at end, space distributed between
+        if num_lines == 1:
+            offsets.append(0.0)
+        else:
+            space_between = (remaining + total_gap) / (num_lines - 1)
+            offset = 0.0
+            for size in line_sizes:
+                offsets.append(offset)
+                offset += size + space_between
+
+    elif align_content == AlignContent.SPACE_AROUND:
+        # Space distributed around each line (half-space at edges)
+        space_per_line = (remaining + total_gap) / num_lines
+        offset = space_per_line / 2
+        for size in line_sizes:
+            offsets.append(offset)
+            offset += size + space_per_line
+
+    elif align_content == AlignContent.STRETCH:
+        # Lines stretched to fill container (handled separately in layout)
+        # For offsets, distribute evenly
+        if num_lines == 1:
+            offsets.append(0.0)
+        else:
+            stretched_size = container_cross / num_lines
+            offset = 0.0
+            for _ in line_sizes:
+                offsets.append(offset)
+                offset += stretched_size
+
+    else:
+        # Default to flex-start
+        offset = 0.0
+        for size in line_sizes:
+            offsets.append(offset)
+            offset += size + gap
+
+    return offsets
 
 
 def _layout_absolute_child(
