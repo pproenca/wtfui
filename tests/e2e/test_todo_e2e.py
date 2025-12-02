@@ -38,11 +38,14 @@ def test_toggle_todo(page: Page, todo_server: str) -> None:
     page.fill('input[placeholder="What needs to be done?"]', "Test todo")
     page.click('button:has-text("Add")')
 
-    # Click toggle button (the circle button)
-    page.click('button:has-text("o")')
+    # Wait for todo to appear
+    expect(page.locator("text=Test todo")).to_be_visible()
 
-    # Verify it's now checked (checkmark)
-    expect(page.locator('button:has-text("v")')).to_be_visible()
+    # Click toggle button (the circle button - Unicode ○)
+    page.click('button:has-text("○")')
+
+    # Verify it's now checked (checkmark - Unicode ✓)
+    expect(page.locator('button:has-text("✓")')).to_be_visible()
 
 
 def test_delete_todo(page: Page, todo_server: str) -> None:
@@ -53,8 +56,12 @@ def test_delete_todo(page: Page, todo_server: str) -> None:
     page.fill('input[placeholder="What needs to be done?"]', "Delete me")
     page.click('button:has-text("Add")')
 
-    # Delete it
-    page.click('button:has-text("x")')
+    # Wait for todo to appear
+    expect(page.locator("text=Delete me")).to_be_visible()
+
+    # Delete it - click the x button that's the sibling following "Delete me" text
+    # The text and x button are siblings in the same HStack row
+    page.locator("text=Delete me").locator("xpath=following-sibling::button[1]").click()
 
     # Verify it's gone
     expect(page.locator("text=Delete me")).not_to_be_visible()

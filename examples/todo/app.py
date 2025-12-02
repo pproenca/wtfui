@@ -86,15 +86,18 @@ def delete_todo(todo_id: str) -> None:
 @component
 async def TodoItem(todo: Todo) -> Element:
     """A single todo item component."""
+    # Capture todo.id by value using default argument to avoid closure issues
+    todo_id = todo.id
+
     with HStack(gap=8, align="center") as item:
         with Button(
             label="✓" if todo.completed else "○",
-            on_click=lambda: toggle_todo(todo.id),
+            on_click=lambda tid=todo_id: toggle_todo(tid),  # type: ignore[misc]
         ):
             pass
         with Text(todo.text, cls="line-through" if todo.completed else ""):
             pass
-        with Button(label="x", on_click=lambda: delete_todo(todo.id)):
+        with Button(label="x", on_click=lambda tid=todo_id: delete_todo(tid)):  # type: ignore[misc]
             pass
     return item
 

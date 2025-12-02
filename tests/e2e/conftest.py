@@ -51,9 +51,13 @@ def dashboard_server() -> Generator[str]:
     proc.wait()
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="function")
 def chat_server() -> Generator[str]:
-    """Start chat app server for testing."""
+    """Start chat app server for testing.
+
+    Uses function scope to ensure each test gets fresh server state,
+    since the chat app uses module-level Signals that persist between requests.
+    """
     port = get_free_port()
     proc = subprocess.Popen(
         ["uv", "run", "uvicorn", "examples.chat.app:app", "--port", str(port)],
