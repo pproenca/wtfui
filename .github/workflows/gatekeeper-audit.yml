@@ -11,8 +11,6 @@ jobs:
   gatekeeper-audit:
     name: Performance & Security Audit
     runs-on: ubuntu-latest
-    # Use Python 3.14 when available
-    # For now, use 3.13 and skip No-GIL test
 
     steps:
       - uses: actions/checkout@v4
@@ -26,7 +24,7 @@ jobs:
         run: uv python install 3.14
 
       - name: Install dependencies
-        run: uv sync --extra dev
+        run: uv sync --dev
 
       - name: Run Gatekeeper Tests
         run: |
@@ -42,6 +40,7 @@ jobs:
         with:
           name: benchmark-results
           path: benchmark-results.json
+          if-no-files-found: warn
 
       - name: Check Benchmark Regression
         uses: benchmark-action/github-action-benchmark@v1

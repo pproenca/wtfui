@@ -90,7 +90,7 @@ def test_no_gil_throughput() -> None:
     # Soft warning if speedup is low but test still passes
     if speedup < MIN_SPEEDUP:
         print(f"WARNING: Speedup {speedup:.2f}x is below target {MIN_SPEEDUP}x")
-        print("This may indicate GIL is active or system is overloaded.")
+        print("This may indicate system overload or GIL-acquiring operations in layout code.")
 
     assert speedup > MIN_SPEEDUP, (
         f"GIL Detected! Speedup {speedup:.2f}x is insufficient for {WORKERS} cores. "
