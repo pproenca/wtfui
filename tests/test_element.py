@@ -57,3 +57,50 @@ def test_multiple_children():
             pass
 
     assert parent.children == [child1, child2]
+
+
+def test_element_auto_mounts_to_current_parent():
+    """Element created inside a with block auto-attaches to parent."""
+    parent = Element()
+
+    with parent:
+        child = Element()  # No 'with' block needed
+
+    assert child in parent.children
+    assert child.parent is parent
+
+
+def test_element_detached_when_no_parent():
+    """Element created outside any with block is detached."""
+    el = Element()
+
+    assert el.parent is None
+    assert el.children == []
+
+
+def test_auto_mount_multiple_children():
+    """Multiple elements auto-mount in creation order."""
+    parent = Element()
+
+    with parent:
+        child1 = Element()
+        child2 = Element()
+        child3 = Element()
+
+    assert parent.children == [child1, child2, child3]
+    assert all(c.parent is parent for c in parent.children)
+
+
+def test_auto_mount_mixed_with_context_manager():
+    """Auto-mount works alongside traditional with blocks."""
+    parent = Element()
+
+    with parent:
+        leaf1 = Element()  # Auto-mounted
+        with Element() as container:  # Traditional with block
+            nested_leaf = Element()  # Auto-mounted to container
+        leaf2 = Element()  # Auto-mounted to parent
+
+    assert parent.children == [leaf1, container, leaf2]
+    assert container.children == [nested_leaf]
+    assert nested_leaf.parent is container
