@@ -144,7 +144,7 @@ def create_pillow_text_measure(text: str, font_path: str, font_size: float) -> C
     from flow.layout.types import Size
 
     try:
-        from PIL import ImageFont  # type: ignore[import-untyped]
+        from PIL import ImageFont  # type: ignore
 
         font = ImageFont.truetype(font_path, int(font_size))
 

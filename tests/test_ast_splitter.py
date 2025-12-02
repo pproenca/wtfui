@@ -25,7 +25,7 @@ async def UserCard(user_id: int):
 
 def test_split_identifies_server_code():
     """Splitter extracts @rpc decorated functions."""
-    server_code, client_code = split_server_client(MIXED_SOURCE)
+    server_code, _client_code = split_server_client(MIXED_SOURCE)
 
     assert "fetch_data" in server_code
     assert "@rpc" in server_code
@@ -34,7 +34,7 @@ def test_split_identifies_server_code():
 
 def test_split_identifies_client_code():
     """Splitter extracts @component decorated functions."""
-    server_code, client_code = split_server_client(MIXED_SOURCE)
+    _server_code, client_code = split_server_client(MIXED_SOURCE)
 
     assert "UserCard" in client_code
     assert "@component" in client_code

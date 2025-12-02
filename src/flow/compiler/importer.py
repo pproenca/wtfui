@@ -31,14 +31,13 @@ import sys
 import threading
 from datetime import datetime
 from pathlib import Path
-from types import CodeType
 from typing import TYPE_CHECKING, cast
 
 from flow.compiler.transformer import compile_for_client, transform_for_client
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
-    from types import ModuleType
+    from types import CodeType, ModuleType
 
 
 # Global debug settings
@@ -152,7 +151,7 @@ class FlowImportHook(importlib.abc.MetaPathFinder, importlib.abc.Loader):
                     self._dump_debug_output(spec.name, origin_path, source)
 
         # Execute in module's namespace
-        exec(cast(CodeType, code), module.__dict__)  # noqa: S102
+        exec(cast("CodeType", code), module.__dict__)  # noqa: S102
 
     def _dump_debug_output(self, module_name: str, origin_path: Path, original_source: str) -> None:
         """Dump transformed source to disk for debugging."""

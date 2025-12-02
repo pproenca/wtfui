@@ -24,7 +24,7 @@ def test_dev_script_is_executable(dev_script: Path):
 
 def test_dev_script_help(dev_script: Path):
     """Dev script help command works."""
-    result = subprocess.run(  # noqa: S603
+    result = subprocess.run(
         [str(dev_script), "help"],
         capture_output=True,
         text=True,
@@ -39,7 +39,7 @@ def test_dev_script_help(dev_script: Path):
 
 def test_dev_script_unknown_command(dev_script: Path):
     """Dev script handles unknown commands."""
-    result = subprocess.run(  # noqa: S603
+    result = subprocess.run(
         [str(dev_script), "unknown_command"],
         capture_output=True,
         text=True,
