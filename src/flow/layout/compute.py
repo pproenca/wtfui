@@ -11,12 +11,20 @@ from flow.layout.algorithm import (
     resolve_flexible_lengths,
 )
 from flow.layout.flexline import collect_flex_lines
-from flow.layout.node import LayoutResult
+from flow.layout.intrinsic import (
+    calculate_fit_content_height,
+    calculate_fit_content_width,
+    calculate_max_content_height,
+    calculate_max_content_width,
+    calculate_min_content_height,
+    calculate_min_content_width,
+)
+from flow.layout.node import LayoutNode, LayoutResult
 from flow.layout.style import Position
+from flow.layout.types import Dimension, DimensionUnit
 
 if TYPE_CHECKING:
-    from flow.layout.node import LayoutNode
-    from flow.layout.types import Dimension, Size
+    from flow.layout.types import Size
 
 
 def compute_layout(node: LayoutNode, available: Size) -> None:
@@ -33,8 +41,9 @@ def compute_layout(node: LayoutNode, available: Size) -> None:
     # Resolve node's own size
     style = node.style
 
-    width = style.width.resolve(available.width)
-    height = style.height.resolve(available.height)
+    # Handle intrinsic dimensions
+    width = _resolve_dimension_with_intrinsic(style.width, available.width, node, is_width=True)
+    height = _resolve_dimension_with_intrinsic(style.height, available.height, node, is_width=False)
 
     # Apply aspect ratio if set
     if style.aspect_ratio is not None:
@@ -73,6 +82,44 @@ def _clamp_size(
     max_val = max_dim.resolve(parent) if max_dim.is_defined() else float("inf")
 
     return max(min_val or 0, min(value, max_val or float("inf")))
+
+
+def _resolve_dimension_with_intrinsic(
+    dim: Dimension,
+    available: float,
+    node: LayoutNode,
+    *,
+    is_width: bool,
+) -> float | None:
+    """Resolve a dimension that may be an intrinsic size.
+
+    Args:
+        dim: The dimension to resolve.
+        available: Available space in this direction.
+        node: The layout node (for intrinsic size calculation).
+        is_width: True for width, False for height.
+
+    Returns:
+        Resolved value in pixels, or None if auto.
+    """
+    if dim._unit == DimensionUnit.MIN_CONTENT:
+        if is_width:
+            return calculate_min_content_width(node)
+        return calculate_min_content_height(node)
+
+    if dim._unit == DimensionUnit.MAX_CONTENT:
+        if is_width:
+            return calculate_max_content_width(node)
+        return calculate_max_content_height(node)
+
+    if dim._unit == DimensionUnit.FIT_CONTENT:
+        max_clamp = dim.value  # Optional clamp stored in value
+        if is_width:
+            return calculate_fit_content_width(node, available, max_clamp)
+        return calculate_fit_content_height(node, available, max_clamp)
+
+    # Regular dimension (auto, points, percent)
+    return dim.resolve(available)
 
 
 def _apply_aspect_ratio(

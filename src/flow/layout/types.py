@@ -13,6 +13,9 @@ class DimensionUnit(Enum):
     AUTO = "auto"
     POINTS = "px"
     PERCENT = "%"
+    MIN_CONTENT = "min-content"
+    MAX_CONTENT = "max-content"
+    FIT_CONTENT = "fit-content"
 
 
 @dataclass(frozen=True, slots=True)
@@ -37,6 +40,21 @@ class Dimension:
         """Create a percentage dimension."""
         return cls(value, DimensionUnit.PERCENT)
 
+    @classmethod
+    def min_content(cls) -> Dimension:
+        """Create a min-content intrinsic dimension."""
+        return cls(None, DimensionUnit.MIN_CONTENT)
+
+    @classmethod
+    def max_content(cls) -> Dimension:
+        """Create a max-content intrinsic dimension."""
+        return cls(None, DimensionUnit.MAX_CONTENT)
+
+    @classmethod
+    def fit_content(cls, max_size: float | None = None) -> Dimension:
+        """Create a fit-content intrinsic dimension with optional clamp."""
+        return cls(max_size, DimensionUnit.FIT_CONTENT)
+
     @property
     def unit(self) -> str:
         """Return the unit as a string for compatibility."""
@@ -45,6 +63,14 @@ class Dimension:
     def is_auto(self) -> bool:
         """Check if this is an auto dimension."""
         return self._unit == DimensionUnit.AUTO
+
+    def is_intrinsic(self) -> bool:
+        """Check if this is an intrinsic size (min/max/fit-content)."""
+        return self._unit in (
+            DimensionUnit.MIN_CONTENT,
+            DimensionUnit.MAX_CONTENT,
+            DimensionUnit.FIT_CONTENT,
+        )
 
     def is_defined(self) -> bool:
         """Check if this dimension has a defined value."""
