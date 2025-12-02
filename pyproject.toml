@@ -83,6 +83,8 @@ ignore = [
     "ARG",    # unused arguments ok in tests (fixtures)
     "S105",   # hardcoded passwords ok in tests
     "S106",   # hardcoded passwords ok in tests
+    "S603",   # subprocess calls ok in tests (E2E fixtures)
+    "S607",   # partial executable paths ok in tests
 ]
 "examples/**/*.py" = [
     "S101",   # assert ok in examples
@@ -135,6 +137,8 @@ module = [
     "uvicorn.*",
     "websockets.*",
     "click.*",
+    "playwright.*",
+    "pytest_playwright.*",
 ]
 ignore_missing_imports = true
 
