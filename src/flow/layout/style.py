@@ -89,6 +89,22 @@ class Position(Enum):
     ABSOLUTE = "absolute"
 
 
+class Display(Enum):
+    """Display mode for elements (matches Yoga's Display enum)."""
+
+    FLEX = "flex"
+    NONE = "none"
+    CONTENTS = "contents"
+
+    def is_visible(self) -> bool:
+        """Check if element should be rendered."""
+        return self != Display.NONE
+
+    def is_contents(self) -> bool:
+        """Check if element should act as if replaced by children."""
+        return self == Display.CONTENTS
+
+
 @dataclass(frozen=True, slots=True)
 class FlexStyle:
     """Complete flexbox style definition for a layout node.

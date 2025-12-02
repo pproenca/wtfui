@@ -71,6 +71,30 @@ class TestPosition:
         assert Position.ABSOLUTE.value == "absolute"
 
 
+class TestDisplay:
+    def test_display_flex_default(self):
+        """Flex is the default display mode."""
+        from flow.layout.style import Display
+
+        assert Display.FLEX.value == "flex"
+        assert Display.FLEX.is_visible()
+
+    def test_display_none_hidden(self):
+        """Display none hides the element."""
+        from flow.layout.style import Display
+
+        assert Display.NONE.value == "none"
+        assert not Display.NONE.is_visible()
+
+    def test_display_contents(self):
+        """Display contents makes element act as if replaced by children."""
+        from flow.layout.style import Display
+
+        assert Display.CONTENTS.value == "contents"
+        assert Display.CONTENTS.is_visible()
+        assert Display.CONTENTS.is_contents()
+
+
 class TestFlexStyle:
     def test_default_style(self):
         style = FlexStyle()
