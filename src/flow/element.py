@@ -10,6 +10,8 @@ from flow.context import get_current_parent, reset_parent, set_current_parent
 if TYPE_CHECKING:
     from contextvars import Token
 
+    from flow.renderer.protocol import RenderNode
+
 
 class Element:
     """The base class for all UI nodes (Div, VStack, Text, etc.)."""
@@ -46,3 +48,31 @@ class Element:
 
     def __repr__(self) -> str:
         return f"<{self.tag} children={len(self.children)} />"
+
+    def to_render_node(self) -> RenderNode:
+        """
+        Convert this element to an abstract RenderNode.
+
+        This decouples Elements from rendering strategy,
+        enabling Universal Runtime (SSR + Wasm).
+        """
+        from flow.renderer.protocol import RenderNode
+
+        node = RenderNode(
+            tag=self.tag,
+            element_id=id(self),
+            props=dict(self.props),
+        )
+
+        # Handle text content (Text elements)
+        if hasattr(self, "content") and self.content:
+            node.text_content = str(self.content)
+
+        # Handle button labels
+        if hasattr(self, "label") and self.label:
+            node.label = str(self.label)
+
+        # Recursively convert children
+        node.children = [child.to_render_node() for child in self.children]
+
+        return node
