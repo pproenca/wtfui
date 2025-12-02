@@ -12,8 +12,12 @@ from flow.ui.elements import (
     Window,
 )
 from flow.ui.layout import Box, Flex
+from flow.ui.spinner import BRAILLE_FRAMES, DOT_FRAMES, LINE_FRAMES, Spinner
 
 __all__ = [
+    "BRAILLE_FRAMES",
+    "DOT_FRAMES",
+    "LINE_FRAMES",
     "Box",
     "Button",
     "Card",
@@ -21,6 +25,7 @@ __all__ = [
     "Flex",
     "HStack",
     "Input",
+    "Spinner",
     "Text",
     "VStack",
     "Window",
