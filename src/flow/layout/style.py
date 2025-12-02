@@ -85,8 +85,17 @@ class AlignContent(Enum):
 class Position(Enum):
     """Positioning mode for elements."""
 
+    STATIC = "static"
     RELATIVE = "relative"
     ABSOLUTE = "absolute"
+
+    def is_static(self) -> bool:
+        """Check if position is static (normal flow, no offsets)."""
+        return self == Position.STATIC
+
+    def is_positioned(self) -> bool:
+        """Check if position is relative or absolute (allows offsets)."""
+        return self in (Position.RELATIVE, Position.ABSOLUTE)
 
 
 class Display(Enum):
@@ -157,7 +166,11 @@ class FlexStyle:
     """
 
     # Display & Position
+    display: Display = Display.FLEX
     position: Position = Position.RELATIVE
+    direction: Direction = Direction.INHERIT
+    overflow: Overflow = Overflow.VISIBLE
+    box_sizing: BoxSizing = BoxSizing.BORDER_BOX
 
     # Flex Container Properties
     flex_direction: FlexDirection = FlexDirection.ROW

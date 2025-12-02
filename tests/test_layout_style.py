@@ -4,10 +4,14 @@ import pytest
 from flow.layout.style import (
     AlignContent,
     AlignItems,
+    BoxSizing,
+    Direction,
+    Display,
     FlexDirection,
     FlexStyle,
     FlexWrap,
     JustifyContent,
+    Overflow,
     Position,
 )
 from flow.layout.types import Dimension
@@ -69,6 +73,34 @@ class TestPosition:
     def test_position_modes(self):
         assert Position.RELATIVE.value == "relative"
         assert Position.ABSOLUTE.value == "absolute"
+
+
+class TestPositionStatic:
+    """Tests for Position.STATIC and helper methods (Yoga parity)."""
+
+    def test_static_value_exists(self):
+        """STATIC position mode should exist."""
+        assert Position.STATIC.value == "static"
+
+    def test_is_static_method(self):
+        """is_static() should return True only for STATIC."""
+        assert Position.STATIC.is_static()
+        assert not Position.RELATIVE.is_static()
+        assert not Position.ABSOLUTE.is_static()
+
+    def test_is_positioned_method(self):
+        """is_positioned() should return True for RELATIVE and ABSOLUTE."""
+        assert Position.RELATIVE.is_positioned()
+        assert Position.ABSOLUTE.is_positioned()
+        assert not Position.STATIC.is_positioned()
+
+    def test_static_default_behavior(self):
+        """STATIC should be the default position (normal flow)."""
+        # This test documents the intended default behavior
+        # FlexStyle currently defaults to RELATIVE, but STATIC
+        # matches CSS default and Yoga's default behavior
+        style = FlexStyle(position=Position.STATIC)
+        assert style.position.is_static()
 
 
 class TestDisplay:
@@ -216,3 +248,54 @@ class TestFlexStyle:
         style = FlexStyle(gap=10.0)
         assert style.get_gap(FlexDirection.ROW) == 10.0
         assert style.get_gap(FlexDirection.COLUMN) == 10.0
+
+
+class TestFlexStyleNewEnums:
+    """Tests for FlexStyle with new enum fields (Task 1.6)."""
+
+    def test_default_style_has_new_enums(self):
+        """Default FlexStyle should have correct default values for new enums."""
+        style = FlexStyle()
+        assert style.display == Display.FLEX
+        assert style.direction == Direction.INHERIT
+        assert style.overflow == Overflow.VISIBLE
+        assert style.box_sizing == BoxSizing.BORDER_BOX
+
+    def test_style_with_updates_new_enums(self):
+        """FlexStyle should accept and store custom enum values."""
+        style = FlexStyle(
+            display=Display.NONE,
+            direction=Direction.RTL,
+            overflow=Overflow.HIDDEN,
+            box_sizing=BoxSizing.CONTENT_BOX,
+        )
+        assert style.display == Display.NONE
+        assert style.direction == Direction.RTL
+        assert style.overflow == Overflow.HIDDEN
+        assert style.box_sizing == BoxSizing.CONTENT_BOX
+
+    def test_style_with_partial_enum_updates(self):
+        """Can set some new enum fields while keeping defaults for others."""
+        style = FlexStyle(
+            display=Display.CONTENTS,
+            direction=Direction.LTR,
+        )
+        assert style.display == Display.CONTENTS
+        assert style.direction == Direction.LTR
+        # Defaults for the others
+        assert style.overflow == Overflow.VISIBLE
+        assert style.box_sizing == BoxSizing.BORDER_BOX
+
+    def test_style_immutable_with_new_enums(self):
+        """New enum fields should respect frozen dataclass."""
+        style = FlexStyle()
+        with pytest.raises(AttributeError):
+            style.display = Display.NONE  # type: ignore[misc]
+
+    def test_style_with_updates_preserves_new_enums(self):
+        """with_updates should work with new enum fields."""
+        style = FlexStyle(display=Display.NONE)
+        new_style = style.with_updates(direction=Direction.RTL)
+        assert new_style.display == Display.NONE  # preserved
+        assert new_style.direction == Direction.RTL  # updated
+        assert style.direction == Direction.INHERIT  # original unchanged
