@@ -5,6 +5,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from flow.layout.node import LayoutNode
+    from flow.layout.style import FlexDirection
 
 
 class SizingMode(Enum):
@@ -82,3 +87,69 @@ class AvailableSpace:
         if self._value is not None:
             return self._value
         return 0.0 if self.is_min_content() else float("inf")
+
+
+def resolve_flexible_lengths(
+    items: list[LayoutNode],
+    container_main_size: float,
+    direction: FlexDirection,
+    gap: float,
+) -> list[float]:
+    """Resolve flex item sizes based on flex-grow/flex-shrink.
+
+    Implements CSS Flexbox spec section 9.7:
+    https://www.w3.org/TR/css-flexbox-1/#resolve-flexible-lengths
+
+    Args:
+        items: List of LayoutNodes to size.
+        container_main_size: Available space in the main axis.
+        direction: Flex direction (row or column).
+        gap: Gap between items.
+
+    Returns:
+        List of resolved main-axis sizes for each item.
+    """
+    if not items:
+        return []
+
+    # Calculate total gap space
+    total_gap = gap * (len(items) - 1) if len(items) > 1 else 0
+    available_space = container_main_size - total_gap
+
+    # Get flex basis for each item
+    bases: list[float] = []
+    for item in items:
+        basis = item.style.flex_basis
+        if basis.is_defined():
+            bases.append(basis.resolve(container_main_size) or 0)
+        else:
+            # Auto basis - use width/height based on direction
+            dim = item.style.width if direction.is_row() else item.style.height
+            bases.append(dim.resolve(container_main_size) or 0)
+
+    total_basis = sum(bases)
+    free_space = available_space - total_basis
+
+    # Calculate flex factors
+    if free_space >= 0:
+        # Growing: distribute free space according to flex-grow
+        total_grow = sum(item.style.flex_grow for item in items)
+        if total_grow == 0:
+            return bases
+
+        return [
+            base + (free_space * (item.style.flex_grow / total_grow))
+            for base, item in zip(bases, items, strict=False)
+        ]
+    else:
+        # Shrinking: reduce sizes according to flex-shrink weighted by basis
+        total_shrink = sum(
+            item.style.flex_shrink * base for base, item in zip(bases, items, strict=False)
+        )
+        if total_shrink == 0:
+            return bases
+
+        return [
+            base + (free_space * (item.style.flex_shrink * base / total_shrink))
+            for base, item in zip(bases, items, strict=False)
+        ]
