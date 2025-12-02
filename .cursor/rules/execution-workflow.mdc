@@ -1,0 +1,134 @@
+---
+description: Use to execute an existing implementation plan task-by-task with TDD and verification
+globs: 
+---
+
+# Execution Workflow
+
+Use this workflow to implement a plan reliably using TDD and strict verification.
+
+## When to Use
+
+- When you have a completed plan (from `planning-workflow.mdc`)
+- To implement features step-by-step
+- To ensure quality via "checkpoints"
+
+## Workflow Steps
+
+### 1. Verify Isolation Context (Safety Check)
+
+**Before loading plan:**
+
+```bash
+git branch --show-current
+```
+
+**If on main/master:**
+> ⚠️ Warning: You're on the main branch. Plans should execute in isolated branches.
+> 
+> Options:
+> 1. Create feature branch: `git checkout -b feature/<name>`
+> 2. Set up worktree (see `@.cursor/skills/using-git-worktrees.md`)
+> 3. Continue on main (I understand the risk)
+
+Wait for user choice before proceeding.
+
+### 2. Plan Review
+
+- Read the plan file
+- **Critical Review:** Do you understand it? Any gaps?
+- Create `todo_write` list mirroring the plan tasks
+- If concerns: Raise them before starting
+
+### 3. Task Execution Loop (Sequential)
+
+For each task:
+
+**Step 1: Mark as in_progress** (update `todo_write`)
+
+**Step 2: TDD Cycle**
+- Write failing test (RED) → Run and verify failure
+- Write minimal code (GREEN) → Run and verify pass
+- Refactor if needed → Verify tests still pass
+
+**Reference:** `@.cursor/skills/test-driven-development.md`
+
+**Step 3: Verification**
+- Run strict verification (tests, lint)
+- See `@.cursor/skills/verification-before-completion.md`
+
+**Step 4: Checkpoint**
+- **STOP**. Show work done.
+- Show verification output with evidence
+- Ask user: "Task N complete. Verified with [Command]. Proceed?"
+- Wait for confirmation
+
+**Step 5: Commit**
+```bash
+git add [files]
+git commit -m "feat: [description]"
+```
+
+**Step 6: Mark complete** (update `todo_write`)
+
+### 4. Code Review After Batch
+
+After completing 3 tasks (or at logical checkpoints):
+
+- Summarize what was implemented
+- Reference `@.cursor/rules/code-reviewer.mdc` for review standards
+- Present: Strengths, Issues (if any), Assessment
+- If Critical issues found: Address before proceeding
+
+### 5. Completion
+
+After all tasks complete and verified:
+
+**Run full suite verification:**
+```bash
+# Python
+uv run pytest
+
+# Node.js
+npm test
+
+# Check exit code
+echo "Exit code: $?"
+```
+
+**Present finishing options:**
+See `@.cursor/skills/finishing-a-development-branch.md`
+
+1. Merge back to main locally
+2. Push and create a Pull Request
+3. Keep the branch as-is
+4. Discard this work
+
+## Critical Rules
+
+- **Checkpoints:** You MUST pause after each task for user confirmation
+- **Evidence:** Never claim "done" without showing command output
+- **Deviations:** If plan is wrong, stop and ask user to update it
+- **No Guessing:** If blocked, ask for clarification
+
+## When to Stop and Ask for Help
+
+**STOP executing immediately when:**
+- Hit a blocker (missing dependency, test fails, instruction unclear)
+- Plan has critical gaps
+- You don't understand an instruction
+- Verification fails repeatedly
+
+**Ask for clarification rather than guessing.**
+
+## Tool Usage
+
+- `todo_write`: Keep this updated in real-time
+- `run_terminal_cmd`: For tests and verification
+
+## Skills Reference
+
+- TDD: `@.cursor/skills/test-driven-development.md`
+- Verification: `@.cursor/skills/verification-before-completion.md`
+- Branch Finishing: `@.cursor/skills/finishing-a-development-branch.md`
+- Worktrees: `@.cursor/skills/using-git-worktrees.md`

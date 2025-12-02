@@ -1,0 +1,125 @@
+---
+description: Use when design is set and you need a detailed implementation plan (Task list)
+globs: 
+---
+
+# Planning Workflow
+
+Use this workflow to create comprehensive implementation plans. Assume the implementer has zero context.
+
+## When to Use
+
+- After brainstorming/design is complete
+- Before writing code for complex features
+- When you need a step-by-step guide for implementation
+
+## Workflow Steps
+
+### 1. External Docs (Optional)
+
+If Context7 MCP tools are available (`mcp_context7_*`):
+- Offer to search external documentation for libraries involved
+- Use `mcp_context7_resolve-library-id` then `mcp_context7_get-library-docs`
+- Keep docs in working memory, don't include raw docs in plan
+
+### 2. Project Detection
+
+Detect stack and framework:
+- `pyproject.toml` or `setup.py` → Python project
+- `package.json` → Node.js project
+- `Cargo.toml` → Rust project
+
+**When Python detected:**
+- Use `uv run` prefix for all Python commands
+- Use `uv run pytest` for testing
+
+Identify relevant `@.cursor/skills/` to reference in the plan.
+
+### 3. Create Plan Document
+
+Create file: `docs/plans/YYYY-MM-DD-<feature>.md`
+
+**Header:**
+```markdown
+# [Feature] Implementation Plan
+
+> **Goal:** [One sentence summary]
+> **Tech Stack:** [List]
+> **Skills Reference:** See @.cursor/skills/test-driven-development.md for TDD protocol
+
+---
+```
+
+### 4. Define Tasks (Bite-Sized)
+
+Break work into tasks (approx. 20 mins each).
+
+**Format:**
+```markdown
+### Task N: [Name]
+
+**Files:**
+- Create: `exact/path/to/file.py`
+- Modify: `exact/path/to/existing.py`
+- Test: `tests/exact/path/to/test.py`
+
+**Step 1: Write the failing test**
+```python
+def test_specific_behavior():
+    result = function(input)
+    assert result == expected
+```
+
+**Step 2: Run test to verify it fails**
+Run: `uv run pytest tests/path/test.py::test_name -v`
+Expected: FAIL with "function not defined"
+
+**Step 3: Write minimal implementation**
+```python
+def function(input):
+    return expected
+```
+
+**Step 4: Run test to verify it passes**
+Run: `uv run pytest tests/path/test.py::test_name -v`
+Expected: PASS
+
+**Step 5: Commit**
+```bash
+git add tests/path/test.py src/path/file.py
+git commit -m "feat: add specific feature"
+```
+```
+
+**Granularity:** Each task must be verifiable (test pass, build success).
+
+### 5. Diagrams (Optional)
+
+If architecture is complex, offer to generate diagrams:
+- Task Dependencies: Show execution order
+- Architecture: Show component relationships
+
+See `@.cursor/rules/diagram-generator.mdc` for diagram types.
+
+### 6. Handoff
+
+Ask user: "Plan saved. Ready to execute?"
+- If yes → Trigger `execution-workflow.mdc`
+- If no → Report completion
+
+## Key Rules
+
+- **TDD First:** Plan MUST include "Write failing test" steps
+- **Exact Paths:** Use full file paths, not descriptions
+- **Verification:** Every task must end with a verification step
+- **Reference Skills:** Link to `@.cursor/skills/` for complex patterns
+
+## Tool Usage
+
+- `todo_write`: Track the planning phases (Research, Drafting, Review)
+- `write`: Create the plan markdown file
+
+## Skills Reference
+
+- TDD Protocol: `@.cursor/skills/test-driven-development.md`
+- Verification: `@.cursor/skills/verification-before-completion.md`

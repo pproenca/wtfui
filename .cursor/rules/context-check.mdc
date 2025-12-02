@@ -1,0 +1,25 @@
+---
+description: Use to quickly check project status and context
+globs: 
+---
+
+# Context Check
+
+Use this workflow to orient yourself or the user when resuming work.
+
+## Steps
+
+1. **Read Context File**: Read `CLAUDE.md` if it exists.
+   - Summarize: Overview, Current Focus, Recent Notes.
+
+2. **Check Git Status**:
+   - `git log --oneline -5` (Recent history)
+   - `git status --short` (Current changes)
+
+3. **Report**:
+   - Present a concise summary of where we are and what's next.
+
+## Tool Usage
+
+- `read_file`: For CLAUDE.md
+- `run_terminal_cmd`: For git commands

@@ -1,0 +1,132 @@
+---
+description: Use for implementing any code changes (features or bugfixes)
+globs: 
+---
+
+# TDD Workflow
+
+Use this workflow for all code changes.
+
+## Reference
+
+Full protocol: `@.cursor/skills/test-driven-development.md`
+
+## The Iron Law
+
+```
+NO PRODUCTION CODE WITHOUT A FAILING TEST FIRST
+```
+
+Write code before the test? Delete it. Start over.
+
+## Workflow Steps
+
+### 1. RED: Write a Failing Test
+
+Write one minimal test showing what should happen.
+
+**Python:**
+```python
+def test_rejects_empty_email():
+    result = submit_form({"email": ""})
+    assert result["error"] == "Email required"
+```
+
+**TypeScript:**
+```typescript
+test('rejects empty email', async () => {
+  const result = await submitForm({ email: '' });
+  expect(result.error).toBe('Email required');
+});
+```
+
+### 2. Verify RED: Watch It Fail
+
+**MANDATORY. Never skip.**
+
+**Python:**
+```bash
+uv run pytest tests/path/test.py::test_name -v
+```
+
+**Node.js:**
+```bash
+npm test -- path/to/test.test.ts
+```
+
+Confirm:
+- Test fails (not errors)
+- Failure message is expected
+- Fails because feature missing (not typos)
+
+### 3. GREEN: Write Minimal Code
+
+Write simplest code to pass the test. Nothing more.
+
+**Don't:**
+- Add features beyond what test requires
+- Refactor other code
+- "Improve" beyond the test
+
+### 4. Verify GREEN: Watch It Pass
+
+**MANDATORY.**
+
+Run same test command. Confirm:
+- Test passes
+- Other tests still pass
+- Output clean (no errors, warnings)
+
+### 5. REFACTOR: Clean Up
+
+After green only:
+- Remove duplication
+- Improve names
+- Extract helpers
+
+Keep tests green. Don't add behavior.
+
+### 6. Repeat
+
+Next failing test for next feature.
+
+## Critical Rules
+
+- **Test First**: Code without a failing test is forbidden
+- **Watch Failure**: You must see the test fail
+- **Minimal Code**: Only write what the test requires
+- **Verify**: See `@.cursor/skills/verification-before-completion.md`
+
+## Anti-Patterns (Avoid)
+
+- Testing mocks instead of real behavior
+- Writing tests after code
+- Skipping verification steps
+- "I'll test after" - tests passing immediately prove nothing
+- "Too simple to test" - simple code breaks too
+
+## Red Flags - STOP and Start Over
+
+- Code before test
+- Test passes immediately
+- Can't explain why test failed
+- Rationalizing "just this once"
+- "Keep as reference" or "adapt existing code"
+
+**All of these mean: Delete code. Start over with TDD.**
+
+## Verification Checklist
+
+Before marking work complete:
+
+- [ ] Every new function/method has a test
+- [ ] Watched each test fail before implementing
+- [ ] Each test failed for expected reason
+- [ ] Wrote minimal code to pass each test
+- [ ] All tests pass
+- [ ] Output pristine (no errors, warnings)
+
+## Skills Reference
+
+- Full TDD Protocol: `@.cursor/skills/test-driven-development.md`
+- Verification: `@.cursor/skills/verification-before-completion.md`

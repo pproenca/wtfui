@@ -1,0 +1,22 @@
+---
+description: Use to record session notes in CLAUDE.md for future context
+globs: 
+---
+
+# Session Notes
+
+Use this workflow to save context for the next session.
+
+## Steps
+
+1. **Ask User**: "What should we note about this session?" (if not provided).
+2. **Read CLAUDE.md**.
+3. **Update**:
+   - Locate "Recent Context" section.
+   - Add new entry: `- **YYYY-MM-DD**: [Note]`
+   - Prune old entries (keep last 5).
+4. **Confirm**: "Note added to CLAUDE.md."
+
+## Tool Usage
+
+- `read_file` / `edit_file` (or `search_replace`)

@@ -1,0 +1,121 @@
+---
+description: Use when fixing bugs, errors, or unexpected behavior
+globs: 
+---
+
+# Debugging Workflow
+
+Use this workflow to systematically fix bugs without guessing.
+
+## Reference
+
+Full protocol: `@.cursor/skills/systematic-debugging.md`
+
+## The Iron Law
+
+```
+NO FIXES WITHOUT ROOT CAUSE INVESTIGATION FIRST
+```
+
+If you haven't completed Phase 1, you cannot propose fixes.
+
+## Workflow Steps
+
+### Phase 1: Investigation (Mandatory)
+
+**BEFORE attempting ANY fix:**
+
+1. **Read Errors**: Don't guess. Read the stack trace completely.
+   - Note line numbers, file paths, error codes
+   - They often contain the exact solution
+
+2. **Reproduce**: Create a reproduction case
+   - Can you trigger it reliably?
+   - What are the exact steps?
+
+3. **Check Recent Changes**:
+   ```bash
+   git diff HEAD~5
+   git log --oneline -10
+   ```
+   What changed that could cause this?
+
+4. **Trace Data Flow** (for multi-component systems):
+   - Where does bad value originate?
+   - Add diagnostic logging at component boundaries
+   - Run once to gather evidence showing WHERE it breaks
+
+### Phase 2: Diagnosis
+
+1. **Form Hypothesis**: State "I think X is causing Y because Z"
+   - Be specific, not vague
+   - Write it down
+
+2. **Test Minimally**: 
+   - Make the SMALLEST possible change to test hypothesis
+   - One variable at a time
+   - Don't fix multiple things at once
+
+3. **Verify**: Did it work?
+   - Yes → Phase 3
+   - No → Form NEW hypothesis, don't add more fixes on top
+
+### Phase 3: Fix
+
+1. **TDD**: Write a failing test first
+   - See `@.cursor/skills/test-driven-development.md`
+   - Test proves the bug exists
+   
+2. **Implement**: Fix the root cause (not the symptom)
+   - ONE change at a time
+   - No "while I'm here" improvements
+
+3. **Verify**: Run the test
+   - Test passes now?
+   - No other tests broken?
+   - Original symptom resolved?
+
+### Phase 4: If 3+ Fixes Failed
+
+**STOP and question the architecture.**
+
+Pattern indicating architectural problem:
+- Each fix reveals new problem in different place
+- Fixes require "massive refactoring"
+- Each fix creates new symptoms elsewhere
+
+**Discuss with user before attempting more fixes.**
+
+This is NOT a failed hypothesis - this is a wrong architecture.
+
+## Critical Rules
+
+- **No Blind Fixes**: Never propose a fix without evidence
+- **No Shotgun Debugging**: Change one thing at a time
+- **Verify**: Run tests after every change
+- **Evidence First**: See `@.cursor/skills/verification-before-completion.md`
+
+## Red Flags - STOP and Follow Process
+
+If you catch yourself thinking:
+- "Quick fix for now, investigate later"
+- "Just try changing X and see if it works"
+- "It's probably X, let me fix that"
+- "I don't fully understand but this might work"
+- "One more fix attempt" (when already tried 2+)
+
+**ALL of these mean: STOP. Return to Phase 1.**
+
+## Quick Reference
+
+| Phase | Key Activities | Success Criteria |
+|-------|---------------|------------------|
+| **1. Root Cause** | Read errors, reproduce, check changes | Understand WHAT and WHY |
+| **2. Diagnosis** | Form hypothesis, test minimally | Confirmed or new hypothesis |
+| **3. Fix** | TDD cycle, fix root cause | Bug resolved, tests pass |
+
+## Skills Reference
+
+- Full Protocol: `@.cursor/skills/systematic-debugging.md`
+- TDD: `@.cursor/skills/test-driven-development.md`
+- Verification: `@.cursor/skills/verification-before-completion.md`

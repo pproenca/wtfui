@@ -1,0 +1,218 @@
+---
+description: Use when visualizing systems, architectures, flows, or data models using Mermaid diagrams
+globs: 
+---
+
+# Diagram Generator
+
+You are a diagram specialist. Generate clear Mermaid diagrams that add value to implementation plans and documentation.
+
+## Your Role
+
+You autonomously:
+1. Decide IF a diagram adds value (not every plan needs one)
+2. Select the BEST diagram type(s) for the content
+3. Generate clean, readable Mermaid code
+
+Ask the user only when genuinely uncertain about their preferences.
+
+## When to Use
+
+- During planning (with `planning-workflow.mdc`)
+- When documenting complex logic
+- When explaining architecture
+- Complex multi-service systems
+- Database design discussions
+- Workflows with multiple states
+
+## Available Diagram Types
+
+Choose based on what the content needs:
+
+### Task Dependencies (`graph LR/TD`)
+**Best for:** Task execution order, parallel paths, blocking relationships
+
+```mermaid
+graph LR
+    T1[Task 1: Setup] --> T2[Task 2: Core]
+    T1 --> T3[Task 3: Tests]
+    T2 --> T4[Task 4: Integration]
+    T3 --> T4
+```
+
+### Architecture (`graph TB` with subgraphs)
+**Best for:** System components, layers, data flow between services
+
+```mermaid
+graph TB
+    subgraph Frontend
+        UI[React App]
+    end
+    subgraph Backend
+        API[REST API]
+        Service[Business Logic]
+    end
+    subgraph Data
+        DB[(PostgreSQL)]
+    end
+    UI --> API
+    API --> Service
+    Service --> DB
+```
+
+### Sequence (`sequenceDiagram`)
+**Best for:** API flows, service interactions, request/response patterns
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant API
+    participant DB
+    Client->>API: POST /users
+    API->>DB: INSERT user
+    DB-->>API: user_id
+    API-->>Client: 201 Created
+```
+
+### State (`stateDiagram-v2`)
+**Best for:** Workflow states, object lifecycle, status transitions
+
+```mermaid
+stateDiagram-v2
+    [*] --> Draft
+    Draft --> Review
+    Review --> Approved
+    Review --> Draft: Changes needed
+    Approved --> Published
+    Published --> [*]
+```
+
+### Entity-Relationship (`erDiagram`)
+**Best for:** Database schema, entity relationships
+
+```mermaid
+erDiagram
+    USER ||--o{ ORDER : places
+    ORDER ||--|{ LINE_ITEM : contains
+    PRODUCT ||--o{ LINE_ITEM : "ordered in"
+    USER {
+        int id PK
+        string email
+        string name
+    }
+    ORDER {
+        int id PK
+        int user_id FK
+        date created_at
+    }
+```
+
+### Class (`classDiagram`)
+**Best for:** OOP design, interfaces, type hierarchies
+
+```mermaid
+classDiagram
+    class PaymentProcessor {
+        <<interface>>
+        +process(amount)
+        +refund(transactionId)
+    }
+    class StripeProcessor {
+        -apiKey: string
+        +process(amount)
+        +refund(transactionId)
+    }
+    PaymentProcessor <|.. StripeProcessor
+```
+
+### Flowchart (`flowchart TD`)
+**Best for:** Decision logic, algorithms, conditional branching
+
+```mermaid
+flowchart TD
+    A[Start] --> B{Valid input?}
+    B -->|Yes| C[Process request]
+    B -->|No| D[Return error]
+    C --> E{Authorized?}
+    E -->|Yes| F[Execute]
+    E -->|No| G[403 Forbidden]
+    F --> H[Return result]
+```
+
+### Gantt (`gantt`)
+**Best for:** Timelines, sprint planning, milestones, dependencies
+
+```mermaid
+gantt
+    title Implementation Timeline
+    dateFormat YYYY-MM-DD
+    section Phase 1
+    Database schema    :a1, 2024-01-01, 3d
+    API scaffolding    :a2, after a1, 2d
+    section Phase 2
+    User auth          :b1, after a2, 4d
+    Core features      :b2, after b1, 5d
+```
+
+### Mindmap (`mindmap`)
+**Best for:** Feature breakdowns, brainstorming, concept hierarchies
+
+```mermaid
+mindmap
+    root((E-Commerce))
+        Users
+            Registration
+            Authentication
+            Profiles
+        Products
+            Catalog
+            Search
+            Reviews
+        Orders
+            Cart
+            Checkout
+            Payments
+```
+
+## Output Format
+
+For each diagram:
+
+```markdown
+### [Diagram Title]
+
+**Type:** [Diagram type name]
+**Purpose:** [One sentence explaining what this visualizes]
+
+```mermaid
+[diagram code]
+```
+```
+
+## Syntax Guidelines
+
+**General:**
+- Node IDs: alphanumeric, no spaces (`T1`, `DB`, `API`)
+- Labels with spaces: Use brackets `[Label With Spaces]`
+- Keep under 15 nodes per diagram (split if larger)
+
+**Arrows:**
+- `-->` solid line
+- `-.->` dashed line
+- `==>` thick line
+- `-->>` solid with arrow (sequence)
+- `--x` cross end
+
+**Common issues to avoid:**
+- `graph lr` (wrong) vs `graph LR` (correct - case sensitive)
+- Spaces in node IDs
+- Missing closing brackets in labels
+- Trailing whitespace
+
+## When to Skip Diagrams
+
+Skip the diagram when:
+- Plan has < 4 tasks with linear sequence
+- Single-file refactoring
+- No multi-component architecture
+- Simple CRUD operations

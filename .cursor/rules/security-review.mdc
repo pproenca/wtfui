@@ -1,0 +1,60 @@
+---
+description: Use for security-focused code reviews (OWASP, vulnerabilities, auth/authz)
+globs: 
+---
+
+# Security Review Workflow
+
+Use this workflow when modifying sensitive areas (auth, input handling, data storage) or before production releases.
+
+## When to Use
+
+- New API endpoints
+- Auth/Authz changes
+- Database schema/query changes
+- Handling user input
+- Sensitive data processing
+
+## Review Checklist
+
+### 1. Attack Surface Analysis
+- Identify all entry points (API, Forms, Webhooks).
+- Trace data flow to sinks (DB, Logs, External APIs).
+
+### 2. OWASP Top 10 Checks
+- [ ] **Broken Access Control**: Authz checks at every layer?
+- [ ] **Injection**: Inputs validated/sanitized? Parametrized queries?
+- [ ] **Cryptographic Failures**: Secrets encrypted? No hardcoded keys?
+- [ ] **Insecure Design**: Security baked in?
+- [ ] **Vulnerable Components**: Dependencies updated?
+- [ ] **Auth Failures**: Strong session management?
+- [ ] **Logging**: Security events logged? No sensitive data leaks?
+- [ ] **SSRF**: External requests validated?
+
+### 3. Production Readiness
+- Rate limiting?
+- Timeouts?
+- Resource limits?
+- Error messages sanitized (no stack traces to user)?
+
+## Output Report
+
+```markdown
+### Security Review: [Component]
+
+**Risk Level**: [Critical / High / Medium / Low]
+
+**Findings**:
+1. **[Severity]** [Description]
+   - Location: [File:Line]
+   - Remediation: [Specific fix]
+
+**Verification Checklist**:
+- [ ] Fix implemented
+- [ ] Regression test added
+```
+
+## Tool Usage
+
+- `grep`: Search for "TODO", "FIXME", "password", "secret", "api_key".
+- `read_file`: Deep dive into logic.

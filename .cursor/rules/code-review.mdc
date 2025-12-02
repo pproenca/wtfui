@@ -1,0 +1,67 @@
+---
+description: Use to review completed work against plans and coding standards
+globs: 
+---
+
+# Code Review Workflow
+
+Use this workflow to review completed work before merging or finishing a task.
+
+## When to Use
+
+- After completing a feature or major task
+- Before merging a branch
+- When explicitly asked to "review" code
+- To verify refactoring
+
+## Review Process
+
+### 1. Scope Understanding
+- What was the goal? (Check Plan or Issue)
+- What files changed? (`git diff --stat`)
+- Range: `git diff BASE_SHA..HEAD_SHA` (if applicable) or current changes.
+
+### 2. Plan Alignment
+- Does implementation match the plan?
+- Are there deviations? (Justified or Scope Creep?)
+- All requirements met?
+
+### 3. Quality Assessment
+- **Patterns**: Adheres to project conventions?
+- **Safety**: Error handling, type safety, input validation.
+- **Tests**: Coverage adequate? Tests pass?
+- **Readability**: Naming, comments, structure.
+
+### 4. Output Report
+Provide a structured review:
+
+```markdown
+### Code Review: [Feature Name]
+
+**Summary**: [High level assessment]
+
+**Strengths**:
+- [Point 1]
+- [Point 2]
+
+**Issues**:
+- [Critical/Important/Minor] [File:Line] [Description]
+
+**Verdict**: [Approve / Request Changes]
+```
+
+## Key Standards
+
+- **Critical**: Bugs, security risks, broken functionality.
+- **Important**: Architecture violations, missing tests, poor error handling.
+- **Minor**: Style, comments, optimizations.
+
+## Tool Usage
+
+- `read_file`: Read changed files thoroughly.
+- `run_terminal_cmd`: Run tests to verify behavior.
+- `git diff`: See changes.
+
+## Reference
+
+- See `docs/cursor-skills/code-review-standards.md` for detailed guidelines.

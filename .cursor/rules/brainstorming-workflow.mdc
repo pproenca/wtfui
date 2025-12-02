@@ -1,0 +1,125 @@
+---
+description: Use for idea generation, design discussions, and architectural refinement before coding
+globs: 
+---
+
+# Brainstorming Workflow
+
+Use this workflow to turn ideas into fully formed designs through collaborative questioning, exploration, and incremental validation.
+
+## When to Use
+
+- Designing new features
+- Refining vague requirements
+- Exploring architectural options
+- **Before** writing any implementation code
+
+## Progress Tracking
+
+Use `todo_write` to track each phase:
+- Understanding: Clarify the problem space
+- Exploring: Investigate alternative approaches
+- Presenting: Document proposed design
+- Handoff: Transition to implementation
+
+Mark each phase as `in_progress` when starting, `completed` when done.
+
+## Workflow Steps
+
+### Phase 1: Understanding
+
+**Step 1: Check project context**
+- Read relevant files, docs, recent commits
+- Understand what exists before proposing what to build
+
+**Step 2: Gather scope and constraints**
+
+Ask questions to clarify:
+- MVP vs Production-ready?
+- Performance/Security constraints?
+- Target users?
+
+**Step 3: Context-specific questions**
+
+Continue with questions one at a time:
+- Purpose: What problem does this solve?
+- Success criteria: How will we know it works?
+- Any unique constraints or requirements
+
+### Phase 2: Exploring Approaches
+
+**Step 1: Identify 2-3 approaches**
+
+After understanding the idea, propose 2-3 different approaches:
+- Describe each briefly with trade-offs
+- Lead with your recommendation and explain why
+- Keep descriptions concise (2-3 sentences each)
+
+**Step 2: Get approach selection**
+
+Ask: "Which approach would you prefer?"
+- [Approach A name] (recommended): [Brief description]
+- [Approach B name]: [Brief description]
+- [Approach C name]: [Brief description]
+
+### Phase 3: Presenting the Design
+
+**Step 1: Present design in sections**
+
+Once approach is selected, present the design:
+- Break into sections of 200-300 words
+- Cover: architecture, components, data flow, error handling, testing
+- One section at a time
+
+**Step 2: Validate each section**
+
+After each section, ask:
+> "Does this section of the design look right?"
+> - Looks good: Proceed to next section
+> - Minor tweaks: I'll specify the changes
+> - Needs rethinking: Let's discuss the issues
+
+**Step 3: Handle feedback**
+
+- **Looks good:** Proceed to next section
+- **Minor tweaks:** Wait for their specification, apply changes, re-validate
+- **Needs rethinking:** Discuss issues, potentially return to Phase 2
+
+### Phase 4: After the Design
+
+**Step 1: Documentation decision**
+
+Ask: "How should I proceed with documentation?"
+- Save and commit: Write design doc and commit to git
+- Save only: Write design doc without committing
+- Skip docs: Proceed without saving design document
+
+**Step 2: Save design (if chosen)**
+
+- Write to `docs/plans/YYYY-MM-DD-<topic>-design.md`
+
+**Step 3: Implementation handoff**
+
+Ask: "Ready to proceed with implementation?"
+- Create worktree: Set up isolated workspace and write implementation plan
+- Just the plan: Write implementation plan in current workspace
+- Stop here: I'll handle implementation separately
+
+**Step 4: Execute choice**
+
+- **Create worktree:** See `@.cursor/skills/using-git-worktrees.md`, then trigger `planning-workflow.mdc`
+- **Just the plan:** Trigger `planning-workflow.mdc` directly
+- **Stop here:** Report completion, offer to continue later
+
+## Key Principles
+
+- **One question at a time** - Don't overwhelm with multiple questions
+- **YAGNI ruthlessly** - Remove unnecessary features from all designs
+- **Explore alternatives** - Always propose 2-3 approaches before settling
+- **Incremental validation** - Present design in sections, validate each
+- **Be flexible** - Go back and clarify when something doesn't make sense
+
+## Example Trigger
+
+User: "I have an idea for a new caching system"
+Response: "I'll use the brainstorming workflow to refine this. First, let me understand the scope..."

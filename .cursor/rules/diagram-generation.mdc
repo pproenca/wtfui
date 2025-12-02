@@ -1,0 +1,46 @@
+---
+description: Use to generate Mermaid diagrams for plans and documentation
+globs: 
+---
+
+# Diagram Generation Workflow
+
+Use this workflow to visualize systems, flows, and data models using Mermaid.
+
+## When to Use
+
+- During planning (`planning-workflow.mdc`)
+- When documenting complex logic
+- When explaining architecture
+
+## Diagram Selection
+
+1. **Task Dependencies** (`graph LR`): For execution order, blocking tasks.
+2. **Architecture** (`graph TB`): System components, layers, data flow.
+3. **Sequence** (`sequenceDiagram`): API flows, service interactions.
+4. **State** (`stateDiagram-v2`): Lifecycle states, transitions.
+5. **ERD** (`erDiagram`): Database schema.
+6. **Flowchart** (`flowchart TD`): Decision logic, algorithms.
+
+## Syntax Guidelines
+
+- **Nodes**: Alphanumeric IDs (`T1`, `API`). Label with brackets `[Label]`.
+- **Arrows**: `-->` (solid), `-.->` (dotted), `==>` (thick).
+- **Size**: Keep under 15 nodes per diagram (split if larger).
+
+## Output Format
+
+```markdown
+### [Title]
+**Type**: [Type]
+**Purpose**: [Description]
+
+```mermaid
+[Code]
+```
+```
+
+## Tool Usage
+
+- Generate the code block directly in the response.
+- No special tool needed to render (Cursor renders Markdown).
