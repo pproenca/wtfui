@@ -181,11 +181,18 @@ def _layout_children(node: LayoutNode) -> None:
 
     gap = style.get_gap(direction)
 
-    # Separate flex items from absolute positioned children
+    # Separate flex items from absolute positioned and display:none children
     flex_items: list[LayoutNode] = []
     absolute_items: list[LayoutNode] = []
+    hidden_items: list[LayoutNode] = []
+
     for child in node.children:
-        if child.style.position == Position.ABSOLUTE:
+        from flow.layout.style import Display
+
+        if child.style.display == Display.NONE:
+            # Elements with display:none are excluded from layout
+            hidden_items.append(child)
+        elif child.style.position == Position.ABSOLUTE:
             absolute_items.append(child)
         else:
             flex_items.append(child)
@@ -312,6 +319,13 @@ def _layout_children(node: LayoutNode) -> None:
     # Layout absolute positioned children
     for abs_child in absolute_items:
         _layout_absolute_child(abs_child, node.layout.width, node.layout.height)
+
+    # Set hidden children to zero size
+    for hidden_child in hidden_items:
+        hidden_child.layout = LayoutResult(x=0, y=0, width=0, height=0)
+        # Recursively set descendants to zero size as well
+        if hidden_child.children:
+            _layout_children(hidden_child)
 
 
 def _distribute_align_content(

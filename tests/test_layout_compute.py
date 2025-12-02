@@ -313,3 +313,240 @@ class TestComputeLayoutBorder:
         # Offset by border.left and border.top
         assert child.layout.x == 8
         assert child.layout.y == 2
+
+
+class TestDisplayNone:
+    """Tests for display:none support in layout (Task 3.1)."""
+
+    def test_display_none_has_zero_size(self):
+        """Element with display:none should have zero size."""
+        from flow.layout.style import Display
+
+        root = LayoutNode(
+            style=FlexStyle(
+                width=Dimension.points(200),
+                height=Dimension.points(100),
+                flex_direction=FlexDirection.ROW,
+            )
+        )
+        child = LayoutNode(
+            style=FlexStyle(
+                display=Display.NONE,
+                width=Dimension.points(50),
+                height=Dimension.points(50),
+            )
+        )
+        root.add_child(child)
+
+        compute_layout(root, available=Size(width=200, height=100))
+
+        # Child with display:none should have zero size
+        assert child.layout.width == 0
+        assert child.layout.height == 0
+        assert child.layout.x == 0
+        assert child.layout.y == 0
+
+    def test_display_none_does_not_affect_siblings_row(self):
+        """Hidden element should not affect layout of visible siblings in row."""
+        from flow.layout.style import Display
+
+        root = LayoutNode(
+            style=FlexStyle(
+                width=Dimension.points(300),
+                height=Dimension.points(100),
+                flex_direction=FlexDirection.ROW,
+            )
+        )
+        child1 = LayoutNode(style=FlexStyle(flex_grow=1.0))
+        child2 = LayoutNode(
+            style=FlexStyle(
+                display=Display.NONE,
+                width=Dimension.points(100),
+            )
+        )
+        child3 = LayoutNode(style=FlexStyle(flex_grow=1.0))
+
+        root.add_child(child1)
+        root.add_child(child2)
+        root.add_child(child3)
+
+        compute_layout(root, available=Size(width=300, height=100))
+
+        # Visible children should split the full 300px width (not affected by hidden child)
+        assert child1.layout.width == 150
+        assert child3.layout.width == 150
+        assert child1.layout.x == 0
+        assert child3.layout.x == 150
+
+        # Hidden child should have zero size
+        assert child2.layout.width == 0
+        assert child2.layout.height == 0
+
+    def test_display_none_does_not_affect_siblings_column(self):
+        """Hidden element should not affect layout of visible siblings in column."""
+        from flow.layout.style import Display
+
+        root = LayoutNode(
+            style=FlexStyle(
+                width=Dimension.points(100),
+                height=Dimension.points(300),
+                flex_direction=FlexDirection.COLUMN,
+            )
+        )
+        child1 = LayoutNode(style=FlexStyle(flex_grow=1.0))
+        child2 = LayoutNode(
+            style=FlexStyle(
+                display=Display.NONE,
+                height=Dimension.points(100),
+            )
+        )
+        child3 = LayoutNode(style=FlexStyle(flex_grow=1.0))
+
+        root.add_child(child1)
+        root.add_child(child2)
+        root.add_child(child3)
+
+        compute_layout(root, available=Size(width=100, height=300))
+
+        # Visible children should split the full 300px height
+        assert child1.layout.height == 150
+        assert child3.layout.height == 150
+        assert child1.layout.y == 0
+        assert child3.layout.y == 150
+
+        # Hidden child should have zero size
+        assert child2.layout.width == 0
+        assert child2.layout.height == 0
+
+    def test_display_none_with_gap(self):
+        """Hidden elements should not contribute to gap spacing."""
+        from flow.layout.style import Display
+
+        root = LayoutNode(
+            style=FlexStyle(
+                width=Dimension.points(300),
+                height=Dimension.points(100),
+                flex_direction=FlexDirection.ROW,
+                gap=10.0,
+            )
+        )
+        child1 = LayoutNode(style=FlexStyle(width=Dimension.points(100)))
+        child2 = LayoutNode(
+            style=FlexStyle(
+                display=Display.NONE,
+                width=Dimension.points(100),
+            )
+        )
+        child3 = LayoutNode(style=FlexStyle(width=Dimension.points(100)))
+
+        root.add_child(child1)
+        root.add_child(child2)
+        root.add_child(child3)
+
+        compute_layout(root, available=Size(width=300, height=100))
+
+        # Only one gap should exist (between child1 and child3)
+        assert child1.layout.x == 0
+        assert child1.layout.width == 100
+        assert child3.layout.x == 110  # 100 + 10 (gap), not 220
+        assert child3.layout.width == 100
+
+        # Hidden child
+        assert child2.layout.width == 0
+        assert child2.layout.height == 0
+
+    def test_display_none_all_children(self):
+        """Container with all hidden children should handle gracefully."""
+        from flow.layout.style import Display
+
+        root = LayoutNode(
+            style=FlexStyle(
+                width=Dimension.points(200),
+                height=Dimension.points(100),
+                flex_direction=FlexDirection.ROW,
+            )
+        )
+        child1 = LayoutNode(style=FlexStyle(display=Display.NONE))
+        child2 = LayoutNode(style=FlexStyle(display=Display.NONE))
+
+        root.add_child(child1)
+        root.add_child(child2)
+
+        compute_layout(root, available=Size(width=200, height=100))
+
+        # All children should have zero size
+        assert child1.layout.width == 0
+        assert child1.layout.height == 0
+        assert child2.layout.width == 0
+        assert child2.layout.height == 0
+
+    def test_display_none_nested(self):
+        """Hidden parent should result in zero-sized descendants."""
+        from flow.layout.style import Display
+
+        root = LayoutNode(
+            style=FlexStyle(
+                width=Dimension.points(200),
+                height=Dimension.points(100),
+                flex_direction=FlexDirection.ROW,
+            )
+        )
+        parent = LayoutNode(
+            style=FlexStyle(
+                display=Display.NONE,
+                flex_grow=1.0,
+            )
+        )
+        child = LayoutNode(style=FlexStyle(flex_grow=1.0))
+
+        root.add_child(parent)
+        parent.add_child(child)
+
+        compute_layout(root, available=Size(width=200, height=100))
+
+        # Parent should have zero size
+        assert parent.layout.width == 0
+        assert parent.layout.height == 0
+
+        # Child of hidden parent should also have zero size
+        assert child.layout.width == 0
+        assert child.layout.height == 0
+
+    def test_display_none_with_fixed_and_flex(self):
+        """Mix of display:none with fixed-size and flex-grow children."""
+        from flow.layout.style import Display
+
+        root = LayoutNode(
+            style=FlexStyle(
+                width=Dimension.points(400),
+                height=Dimension.points(100),
+                flex_direction=FlexDirection.ROW,
+            )
+        )
+        child1 = LayoutNode(style=FlexStyle(width=Dimension.points(100)))
+        child2 = LayoutNode(style=FlexStyle(display=Display.NONE, width=Dimension.points(50)))
+        child3 = LayoutNode(style=FlexStyle(flex_grow=1.0))
+        child4 = LayoutNode(style=FlexStyle(width=Dimension.points(150)))
+
+        root.add_child(child1)
+        root.add_child(child2)
+        root.add_child(child3)
+        root.add_child(child4)
+
+        compute_layout(root, available=Size(width=400, height=100))
+
+        # Fixed-size children
+        assert child1.layout.width == 100
+        assert child1.layout.x == 0
+
+        # Hidden child
+        assert child2.layout.width == 0
+        assert child2.layout.height == 0
+
+        # Flex child should take remaining space: 400 - 100 - 150 = 150
+        assert child3.layout.width == 150
+        assert child3.layout.x == 100
+
+        # Fixed-size child
+        assert child4.layout.width == 150
+        assert child4.layout.x == 250
