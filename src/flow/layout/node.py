@@ -4,13 +4,25 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Protocol
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
     from flow.layout.style import FlexStyle
     from flow.layout.types import Size
+
+
+class BaselineFunc(Protocol):
+    """Protocol for baseline calculation callback.
+
+    Returns the baseline offset from the top of the element.
+    Typical use: text elements return baseline = height - descender.
+    """
+
+    def __call__(self, width: float, height: float) -> float:
+        """Calculate baseline offset from top given dimensions."""
+        ...
 
 
 @dataclass
@@ -66,6 +78,9 @@ class LayoutNode:
     # Nodes with measure_func are leaf nodes (text, images, etc.)
     measure_func: Callable[..., Size] | None = field(default=None)
 
+    # Baseline function for text alignment (Yoga parity)
+    baseline_func: BaselineFunc | None = field(default=None)
+
     # Computed layout (set after compute_layout)
     layout: LayoutResult = field(default_factory=LayoutResult)
 
@@ -116,3 +131,21 @@ class LayoutNode:
         does not depend on its content and can be computed in parallel.
         """
         return self.style.width.is_defined() and self.style.height.is_defined()
+
+    def has_baseline_func(self) -> bool:
+        """Check if this node has a custom baseline function."""
+        return self.baseline_func is not None
+
+    def get_baseline(self, width: float, height: float) -> float | None:
+        """Get the baseline offset from top, or None if no baseline_func.
+
+        Args:
+            width: The computed width of the element.
+            height: The computed height of the element.
+
+        Returns:
+            The baseline offset from top, or None if no baseline_func.
+        """
+        if self.baseline_func is not None:
+            return self.baseline_func(width, height)
+        return None
