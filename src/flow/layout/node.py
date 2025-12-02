@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from enum import Enum
 from typing import TYPE_CHECKING, Protocol
 
 if TYPE_CHECKING:
@@ -11,6 +12,30 @@ if TYPE_CHECKING:
 
     from flow.layout.style import FlexStyle
     from flow.layout.types import Size
+
+
+class MeasureMode(Enum):
+    """Sizing constraint mode for layout calculations (matches Yoga's MeasureMode)."""
+
+    UNDEFINED = "undefined"  # No constraint, use intrinsic size
+    EXACTLY = "exactly"  # Exact size constraint (width/height specified)
+    AT_MOST = "at-most"  # Maximum size constraint (max-width/max-height)
+
+
+@dataclass(frozen=True)
+class CachedMeasurement:
+    """Cached layout measurement for avoiding redundant calculations.
+
+    Stores the input parameters and computed output of a layout calculation
+    so we can skip recomputation when the same parameters are used again.
+    """
+
+    available_width: float
+    available_height: float
+    width_mode: MeasureMode
+    height_mode: MeasureMode
+    computed_width: float
+    computed_height: float
 
 
 class BaselineFunc(Protocol):
@@ -81,6 +106,9 @@ class LayoutNode:
     # Baseline function for text alignment (Yoga parity)
     baseline_func: BaselineFunc | None = field(default=None)
 
+    # Cached measurement for avoiding redundant layout calculations (Yoga parity)
+    cached_measurement: CachedMeasurement | None = field(default=None)
+
     # Computed layout (set after compute_layout)
     layout: LayoutResult = field(default_factory=LayoutResult)
 
@@ -135,6 +163,10 @@ class LayoutNode:
     def has_baseline_func(self) -> bool:
         """Check if this node has a custom baseline function."""
         return self.baseline_func is not None
+
+    def invalidate_cache(self) -> None:
+        """Clear cached measurement for this node."""
+        self.cached_measurement = None
 
     def get_baseline(self, width: float, height: float) -> float | None:
         """Get the baseline offset from top, or None if no baseline_func.
