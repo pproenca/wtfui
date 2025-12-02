@@ -1,12 +1,16 @@
 # tests/test_layout_style.py
+import pytest
+
 from flow.layout.style import (
     AlignContent,
     AlignItems,
     FlexDirection,
+    FlexStyle,
     FlexWrap,
     JustifyContent,
     Position,
 )
+from flow.layout.types import Dimension
 
 
 class TestFlexDirection:
@@ -65,3 +69,48 @@ class TestPosition:
     def test_position_modes(self):
         assert Position.RELATIVE.value == "relative"
         assert Position.ABSOLUTE.value == "absolute"
+
+
+class TestFlexStyle:
+    def test_default_style(self):
+        style = FlexStyle()
+        assert style.flex_direction == FlexDirection.ROW
+        assert style.flex_wrap == FlexWrap.NO_WRAP
+        assert style.justify_content == JustifyContent.FLEX_START
+        assert style.align_items == AlignItems.STRETCH
+
+    def test_style_with_dimensions(self):
+        style = FlexStyle(
+            width=Dimension.points(100),
+            height=Dimension.percent(50),
+            flex_grow=1.0,
+            flex_shrink=0.0,
+        )
+        assert style.width.resolve(200) == 100
+        assert style.height.resolve(200) == 100
+        assert style.flex_grow == 1.0
+
+    def test_style_immutable(self):
+        style = FlexStyle()
+        with pytest.raises(AttributeError):  # frozen dataclass
+            style.flex_grow = 1.0  # type: ignore[misc]
+
+    def test_style_copy_with(self):
+        style = FlexStyle(flex_grow=1.0)
+        new_style = style.with_updates(flex_shrink=0.5)
+        assert new_style.flex_grow == 1.0
+        assert new_style.flex_shrink == 0.5
+        assert style.flex_shrink != 0.5  # original unchanged
+
+    def test_get_gap_for_row(self):
+        style = FlexStyle(gap=10.0, column_gap=20.0)
+        assert style.get_gap(FlexDirection.ROW) == 20.0  # column_gap takes precedence
+
+    def test_get_gap_for_column(self):
+        style = FlexStyle(gap=10.0, row_gap=15.0)
+        assert style.get_gap(FlexDirection.COLUMN) == 15.0  # row_gap takes precedence
+
+    def test_get_gap_fallback(self):
+        style = FlexStyle(gap=10.0)
+        assert style.get_gap(FlexDirection.ROW) == 10.0
+        assert style.get_gap(FlexDirection.COLUMN) == 10.0
