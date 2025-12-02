@@ -3,5 +3,15 @@
 from flow.renderer.console import ansi
 from flow.renderer.console.buffer import Buffer
 from flow.renderer.console.cell import Cell
+from flow.renderer.console.diff import DiffResult, diff_buffers
+from flow.renderer.console.theme import PALETTE, apply_cls_to_cell
 
-__all__ = ["Buffer", "Cell", "ansi"]
+__all__ = [
+    "PALETTE",
+    "Buffer",
+    "Cell",
+    "DiffResult",
+    "ansi",
+    "apply_cls_to_cell",
+    "diff_buffers",
+]
