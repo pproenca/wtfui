@@ -105,6 +105,22 @@ class Display(Enum):
         return self == Display.CONTENTS
 
 
+class Direction(Enum):
+    """Text/layout direction (LTR or RTL)."""
+
+    INHERIT = "inherit"
+    LTR = "ltr"
+    RTL = "rtl"
+
+    def is_ltr(self) -> bool:
+        """Check if left-to-right."""
+        return self == Direction.LTR
+
+    def is_rtl(self) -> bool:
+        """Check if right-to-left."""
+        return self == Direction.RTL
+
+
 @dataclass(frozen=True, slots=True)
 class FlexStyle:
     """Complete flexbox style definition for a layout node.

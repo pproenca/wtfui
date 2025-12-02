@@ -95,6 +95,32 @@ class TestDisplay:
         assert Display.CONTENTS.is_contents()
 
 
+class TestDirection:
+    def test_direction_ltr_default(self):
+        """LTR is the default direction."""
+        from flow.layout.style import Direction
+
+        assert Direction.LTR.value == "ltr"
+        assert Direction.LTR.is_ltr()
+        assert not Direction.LTR.is_rtl()
+
+    def test_direction_rtl(self):
+        """RTL reverses horizontal layout."""
+        from flow.layout.style import Direction
+
+        assert Direction.RTL.value == "rtl"
+        assert Direction.RTL.is_rtl()
+        assert not Direction.RTL.is_ltr()
+
+    def test_direction_inherit(self):
+        """Inherit takes direction from parent."""
+        from flow.layout.style import Direction
+
+        assert Direction.INHERIT.value == "inherit"
+        assert not Direction.INHERIT.is_ltr()
+        assert not Direction.INHERIT.is_rtl()
+
+
 class TestFlexStyle:
     def test_default_style(self):
         style = FlexStyle()
