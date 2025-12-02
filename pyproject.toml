@@ -46,6 +46,9 @@ addopts = [
     "--strict-markers",
     "--tb=short",
 ]
+markers = [
+    "gatekeeper: Critical performance and security tests (deselect with '-m \"not gatekeeper\"')",
+]
 
 # ============================================================================
 # Ruff Configuration (Linting + Formatting)
