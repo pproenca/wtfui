@@ -23,18 +23,17 @@ class Element:
         self.tag: str = self.__class__.__name__
         self.props: dict[str, Any] = props
         self.children: list[Element] = []
-        self.parent: Element | None = None
         self._token: Token[Element | None] | None = None
 
-    def __enter__(self) -> Element:
-        # Capture current parent (if any)
+        # Auto-Mount: Immediately attach to the active container
+        # This allows 'Text("Hi")' to work without a 'with' block
         self.parent = get_current_parent()
-
-        # Attach self to parent's children
         if self.parent is not None:
             self.parent.children.append(self)
 
-        # Push self as the new 'Active Parent'
+    def __enter__(self) -> Element:
+        # Context Entry: Only needed if this element HAS children
+        # Element is already attached to parent via __init__
         self._token = set_current_parent(self)
         return self
 
