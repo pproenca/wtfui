@@ -71,3 +71,22 @@ class TestElementLayout:
         style = elem.get_layout_style()
         assert style.flex_grow == 1.0
         assert style.width == Dimension.points(100)
+
+    def test_layout_with_leaf_syntax(self):
+        """Layout computation works with auto-mounted elements."""
+        from flow.layout.compute import compute_layout
+        from flow.layout.types import Size
+        from flow.ui.elements import Div, Text
+
+        with Div(width=800, height=600) as root:
+            Text("Header")
+            with Div():
+                Text("Content")
+            Text("Footer")
+
+        layout_node = root.to_layout_node()
+        compute_layout(layout_node, Size(800, 600))
+
+        # Verify layout was computed for all children
+        assert len(layout_node.children) == 3
+        assert all(child.layout.width >= 0 for child in layout_node.children)
