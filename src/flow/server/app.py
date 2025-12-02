@@ -3,12 +3,15 @@
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
-from fastapi import FastAPI, Request, WebSocket
-from fastapi.responses import HTMLResponse
+from fastapi import FastAPI, HTTPException, Request, WebSocket
+from fastapi.responses import HTMLResponse, JSONResponse
 
 from flow.renderer import HTMLRenderer, Renderer
+from flow.rpc import RpcRegistry
+from flow.rpc.encoder import flow_json_dumps
 from flow.server.session import LiveSession
 
 
@@ -96,6 +99,31 @@ def create_app(
             pass  # Connection closed, cleanup in finally
         finally:
             sessions.pop(session_id, None)
+
+    @app.post("/api/rpc/{func_name}")
+    async def rpc_handler(func_name: str, request: Request) -> JSONResponse:
+        """Handle RPC calls from the client with robust serialization."""
+        target_func = RpcRegistry.get(func_name)
+
+        if target_func is None:
+            raise HTTPException(status_code=404, detail=f"RPC function '{func_name}' not found")
+
+        # Parse the request body as JSON
+        try:
+            data = await request.json()
+        except Exception:
+            data = {}
+
+        # Call the function with the provided arguments
+        result = await target_func(**data)
+
+        # Serialize with FlowJSONEncoder (handles datetime, UUID, dataclasses, etc.)
+        json_content = flow_json_dumps(result)
+
+        return JSONResponse(
+            content=json.loads(json_content),  # FastAPI requires dict, not string
+            media_type="application/json",
+        )
 
     return app
 

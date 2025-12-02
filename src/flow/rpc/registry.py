@@ -1,4 +1,4 @@
-# src/flow/rpc.py
+# src/flow/rpc/registry.py
 """RPC - Remote Procedure Call system for server/client communication."""
 
 from __future__ import annotations
