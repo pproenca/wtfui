@@ -109,4 +109,3 @@ When reviewing completed work, assess these areas:
 - "It's just a small change" - small changes can have large impact
 - "I'm confident it works" - fresh perspective catches blind spots
 - "No tests exist for this area" - review is MORE important here
-

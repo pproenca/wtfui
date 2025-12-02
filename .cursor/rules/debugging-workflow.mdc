@@ -1,6 +1,6 @@
 ---
 description: Use when fixing bugs, errors, or unexpected behavior
-globs: 
+globs:
 ---
 
 # Debugging Workflow
@@ -51,7 +51,7 @@ If you haven't completed Phase 1, you cannot propose fixes.
    - Be specific, not vague
    - Write it down
 
-2. **Test Minimally**: 
+2. **Test Minimally**:
    - Make the SMALLEST possible change to test hypothesis
    - One variable at a time
    - Don't fix multiple things at once
@@ -65,7 +65,7 @@ If you haven't completed Phase 1, you cannot propose fixes.
 1. **TDD**: Write a failing test first
    - See `@.cursor/skills/test-driven-development.md`
    - Test proves the bug exists
-   
+
 2. **Implement**: Fix the root cause (not the symptom)
    - ONE change at a time
    - No "while I'm here" improvements

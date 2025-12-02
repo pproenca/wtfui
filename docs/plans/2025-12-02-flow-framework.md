@@ -208,7 +208,7 @@ def test_context_stack_nesting():
     """Context can be nested and restored."""
     parent1 = object()
     parent2 = object()
-    
+
     token1 = set_current_parent(parent1)
     try:
         assert get_current_parent() is parent1
@@ -301,11 +301,11 @@ def test_element_nesting_builds_tree():
     """Nested context managers build parent-child relationships."""
     parent = Element()
     child = Element()
-    
+
     with parent:
         with child:
             pass
-    
+
     assert child in parent.children
     assert child.parent is parent
 
@@ -314,13 +314,13 @@ def test_multiple_children():
     parent = Element()
     child1 = Element()
     child2 = Element()
-    
+
     with parent:
         with child1:
             pass
         with child2:
             pass
-    
+
     assert parent.children == [child1, child2]
 ```
 
@@ -418,31 +418,31 @@ def test_signal_updates_value():
 def test_signal_no_notify_on_same_value():
     """Signal does not notify when value unchanged."""
     notifications = []
-    
+
     sig = Signal(5)
     sig.subscribe(lambda: notifications.append("called"))
-    
+
     sig.value = 5  # Same value
     assert notifications == []
 
 def test_signal_notifies_on_change():
     """Signal notifies subscribers when value changes."""
     notifications = []
-    
+
     sig = Signal(0)
     sig.subscribe(lambda: notifications.append("called"))
-    
+
     sig.value = 1
     assert notifications == ["called"]
 
 def test_signal_multiple_subscribers():
     """Signal notifies all subscribers."""
     calls = []
-    
+
     sig = Signal("a")
     sig.subscribe(lambda: calls.append("sub1"))
     sig.subscribe(lambda: calls.append("sub2"))
-    
+
     sig.value = "b"
     assert calls == ["sub1", "sub2"]
 
@@ -450,10 +450,10 @@ def test_signal_generic_typing():
     """Signal supports generic types."""
     sig_int: Signal[int] = Signal(0)
     sig_str: Signal[str] = Signal("")
-    
+
     sig_int.value = 42
     sig_str.value = "hello"
-    
+
     assert sig_int.value == 42
     assert sig_str.value == "hello"
 
@@ -461,17 +461,17 @@ def test_signal_thread_safety():
     """Signal handles concurrent updates without tearing (No-GIL safe)."""
     sig = Signal(0)
     results = []
-    
+
     def increment():
         for _ in range(100):
             sig.value = sig.value + 1
-    
+
     threads = [threading.Thread(target=increment) for _ in range(4)]
     for t in threads:
         t.start()
     for t in threads:
         t.join()
-    
+
     # Value should be 400 if thread-safe (no lost updates)
     assert sig.value == 400
 ```
@@ -495,7 +495,7 @@ T = TypeVar("T")
 class Signal(Generic[T]):
     """
     A thread-safe value that notifies subscribers when it changes.
-    
+
     Uses threading.Lock for No-GIL safety in Python 3.14+.
     The lock is cheap in free-threaded builds.
     """
@@ -581,13 +581,13 @@ def test_effect_tracks_signal_access():
     """Effect automatically tracks signals read during execution."""
     count = Signal(0)
     computed_values = []
-    
+
     def compute():
         computed_values.append(count.value * 2)
-    
+
     Effect(compute)
     assert computed_values == [0]  # Initial run
-    
+
     count.value = 5
     assert computed_values == [0, 10]  # Re-ran after signal change
 
@@ -596,26 +596,26 @@ def test_effect_tracks_multiple_signals():
     a = Signal(1)
     b = Signal(2)
     results = []
-    
+
     def compute():
         results.append(a.value + b.value)
-    
+
     Effect(compute)
     assert results == [3]
-    
+
     a.value = 10
     assert results == [3, 12]
-    
+
     b.value = 20
     assert results == [3, 12, 30]
 
 def test_running_effect_context():
     """get_running_effect returns the active effect during execution."""
     captured = []
-    
+
     def capture():
         captured.append(get_running_effect())
-    
+
     effect = Effect(capture)
     assert captured[0] is effect
 
@@ -624,26 +624,26 @@ def test_effect_thread_isolation():
     results = {"thread1": [], "thread2": []}
     sig1 = Signal(0)
     sig2 = Signal(0)
-    
+
     def thread1_work():
         def track():
             results["thread1"].append(sig1.value)
         Effect(track)
         sig1.value = 10
-    
+
     def thread2_work():
         def track():
             results["thread2"].append(sig2.value)
         Effect(track)
         sig2.value = 20
-    
+
     t1 = threading.Thread(target=thread1_work)
     t2 = threading.Thread(target=thread2_work)
     t1.start()
     t2.start()
     t1.join()
     t2.join()
-    
+
     assert 0 in results["thread1"] and 10 in results["thread1"]
     assert 0 in results["thread2"] and 20 in results["thread2"]
 ```
@@ -670,7 +670,7 @@ T = TypeVar("T")
 class Signal(Generic[T]):
     """
     A thread-safe value that notifies subscribers when it changes.
-    
+
     Uses threading.Lock for No-GIL safety in Python 3.14+.
     """
 
@@ -684,7 +684,7 @@ class Signal(Generic[T]):
     def value(self) -> T:
         """Get the current value and track effect dependency (thread-safe)."""
         from flow.effect import get_running_effect
-        
+
         with self._lock:
             effect = get_running_effect()
             if effect is not None:
@@ -713,10 +713,10 @@ class Signal(Generic[T]):
         """Notify all subscribers and effects. Must be called with lock held."""
         subscribers = list(self._subscribers)
         effects = list(self._effects)
-        
+
         for subscriber in subscribers:
             subscriber()
-        
+
         for effect in effects:
             effect.schedule()  # Schedule, don't run inline (prevents deadlock)
 
@@ -747,7 +747,7 @@ def get_running_effect() -> Optional["Effect"]:
 class Effect:
     """
     Wraps a function to track Signal usage and re-run on changes.
-    
+
     Thread-safe for Python 3.14+ No-GIL builds.
     """
 
@@ -763,7 +763,7 @@ class Effect:
             if self._scheduled:
                 return
             self._scheduled = True
-        
+
         # In a full implementation, this would go to an event loop
         # For now, execute synchronously
         self.run()
@@ -772,7 +772,7 @@ class Effect:
         """Execute the function while tracking as the active effect."""
         with self._lock:
             self._scheduled = False
-        
+
         token: Token = _running_effect.set(self)
         try:
             self.fn()
@@ -807,7 +807,7 @@ git commit -m "feat(core): add Effect for dependency tracking"
 def test_core_exports():
     """Core classes are exported from flow package."""
     from flow import Element, Signal, Effect
-    
+
     assert Element is not None
     assert Signal is not None
     assert Effect is not None
@@ -815,7 +815,7 @@ def test_core_exports():
 def test_signal_can_be_used():
     """Signal works when imported from flow."""
     from flow import Signal
-    
+
     sig = Signal(42)
     assert sig.value == 42
 ```
@@ -911,7 +911,7 @@ def test_vstack_layout():
             pass
         with Div():
             pass
-    
+
     assert stack.tag == "VStack"
     assert len(stack.children) == 2
     assert stack.props["gap"] == 4
@@ -923,7 +923,7 @@ def test_hstack_layout():
             pass
         with Text("B"):
             pass
-    
+
     assert stack.tag == "HStack"
     assert len(stack.children) == 2
 
@@ -932,12 +932,12 @@ def test_props_support_future_style_architecture():
     # V1: String-based classes
     div1 = Div(cls="container p-4")
     assert div1.props["cls"] == "container p-4"
-    
+
     # V2-ready: Props can hold any value (Style objects in future)
     div2 = Div(padding=4, margin=2)  # Keyword-argument styling
     assert div2.props["padding"] == 4
     assert div2.props["margin"] == 2
-    
+
     # The architecture allows both patterns to coexist
     div3 = Div(cls="container", padding=4)
     assert "cls" in div3.props
@@ -979,7 +979,7 @@ class HStack(Element):
 
 class Card(Element):
     """A card container with optional title."""
-    
+
     def __init__(self, title: Optional[str] = None, **props: Any) -> None:
         super().__init__(**props)
         self.title = title
@@ -1104,7 +1104,7 @@ def test_element_produces_render_node():
     """Elements produce RenderNode for renderers to consume."""
     div = Div(cls="container")
     node = div.to_render_node()
-    
+
     assert node.tag == "Div"
     assert node.props["cls"] == "container"
     assert node.element_id == id(div)
@@ -1113,9 +1113,9 @@ def test_html_renderer_simple_element():
     """HTMLRenderer produces HTML from elements."""
     div = Div(cls="container")
     renderer = HTMLRenderer()
-    
+
     html = renderer.render(div)
-    
+
     assert "<div" in html.lower()
     assert 'class="container"' in html
     assert f'id="flow-{id(div)}"' in html
@@ -1124,7 +1124,7 @@ def test_html_renderer_text_element():
     """HTMLRenderer renders Text content."""
     text = Text("Hello, World!")
     renderer = HTMLRenderer()
-    
+
     html = renderer.render(text)
     assert "Hello, World!" in html
 
@@ -1135,10 +1135,10 @@ def test_html_renderer_nested_elements():
             pass
         with Text("Child 2"):
             pass
-    
+
     renderer = HTMLRenderer()
     html = renderer.render(parent)
-    
+
     assert "Child 1" in html
     assert "Child 2" in html
 
@@ -1146,17 +1146,17 @@ def test_html_renderer_button():
     """HTMLRenderer renders Button with label."""
     btn = Button("Click me")
     renderer = HTMLRenderer()
-    
+
     html = renderer.render(btn)
     assert "Click me" in html
 
 def test_renderer_is_swappable():
     """Different renderers can be used interchangeably."""
     div = Div(cls="test")
-    
+
     # Both implement the same protocol
     html_renderer = HTMLRenderer()
-    
+
     # In Wasm, we'd use DOMRenderer instead
     # This test just verifies the abstraction works
     result = html_renderer.render(div)
@@ -1185,7 +1185,7 @@ if TYPE_CHECKING:
 class RenderNode:
     """
     Abstract representation of an Element for rendering.
-    
+
     This decouples Elements from their rendering strategy,
     enabling the Universal Runtime (SSR + Wasm).
     """
@@ -1193,7 +1193,7 @@ class RenderNode:
     element_id: int
     props: dict[str, Any] = field(default_factory=dict)
     children: list["RenderNode"] = field(default_factory=list)
-    
+
     # Special content fields
     text_content: str | None = None
     label: str | None = None
@@ -1202,7 +1202,7 @@ class RenderNode:
 class Renderer(ABC):
     """
     Abstract base class for all renderers.
-    
+
     Implementations:
     - HTMLRenderer: Outputs HTML strings (Server)
     - DOMRenderer: Outputs js.document calls (Wasm)
@@ -1241,7 +1241,7 @@ if TYPE_CHECKING:
 class HTMLRenderer(Renderer):
     """
     Renders Element trees to HTML strings.
-    
+
     Used for Server-Side Rendering (SSR).
     Can be swapped with DOMRenderer for Wasm.
     """
@@ -1266,11 +1266,11 @@ class HTMLRenderer(Renderer):
     def render_node(self, node: RenderNode) -> str:
         """Render a RenderNode to HTML."""
         html_tag = self.TAG_MAP.get(node.tag, "div")
-        
+
         # Build attributes
         attrs_parts: list[str] = []
         attrs_parts.append(f'id="flow-{node.element_id}"')
-        
+
         for key, value in node.props.items():
             if key == "cls":
                 attrs_parts.append(f'class="{value}"')
@@ -1282,16 +1282,16 @@ class HTMLRenderer(Renderer):
                     attrs_parts.append(key)
             elif value is not None:
                 attrs_parts.append(f'{key}="{value}"')
-        
+
         attrs_str = " ".join(attrs_parts)
-        
+
         # Get inner content
         inner_html = self._render_inner(node)
-        
+
         # Self-closing tags
         if html_tag in ("input", "img", "br", "hr"):
             return f"<{html_tag} {attrs_str} />"
-        
+
         return f"<{html_tag} {attrs_str}>{inner_html}</{html_tag}>"
 
     def _render_inner(self, node: RenderNode) -> str:
@@ -1299,11 +1299,11 @@ class HTMLRenderer(Renderer):
         # Text content takes priority
         if node.text_content:
             return self.render_text(node.text_content)
-        
+
         # Button labels
         if node.label:
             return self.render_text(node.label)
-        
+
         # Render children
         return "".join(self.render_node(child) for child in node.children)
 
@@ -1325,29 +1325,29 @@ class HTMLRenderer(Renderer):
     def to_render_node(self) -> "RenderNode":
         """
         Convert this element to an abstract RenderNode.
-        
+
         This decouples Elements from rendering strategy,
         enabling Universal Runtime (SSR + Wasm).
         """
         from flow.renderer.protocol import RenderNode
-        
+
         node = RenderNode(
             tag=self.tag,
             element_id=id(self),
             props=dict(self.props),
         )
-        
+
         # Handle text content (Text elements)
         if hasattr(self, "content") and self.content:
             node.text_content = str(self.content)
-        
+
         # Handle button labels
         if hasattr(self, "label") and self.label:
             node.label = str(self.label)
-        
+
         # Recursively convert children
         node.children = [child.to_render_node() for child in self.children]
-        
+
         return node
 ```
 
@@ -1405,12 +1405,12 @@ def test_dom_renderer_creates_element():
     mock_doc = MagicMock()
     mock_el = MagicMock()
     mock_doc.createElement.return_value = mock_el
-    
+
     renderer = DOMRenderer(document=mock_doc)
     div = Div(cls="test")
-    
+
     result = renderer.render(div)
-    
+
     mock_doc.createElement.assert_called_with("div")
 ```
 
@@ -1431,7 +1431,7 @@ if TYPE_CHECKING:
 class DOMRenderer(Renderer):
     """
     Renders Element trees directly to the browser DOM.
-    
+
     Used in WebAssembly (PyScript/Pyodide) environments.
     Receives a `document` object (either real or mock).
     """
@@ -1459,11 +1459,11 @@ class DOMRenderer(Renderer):
     def render_node(self, node: RenderNode) -> Any:
         """Render a RenderNode to a DOM element."""
         html_tag = self.TAG_MAP.get(node.tag, "div")
-        
+
         # Create the element
         el = self.document.createElement(html_tag)
         el.id = f"flow-{node.element_id}"
-        
+
         # Set attributes
         for key, value in node.props.items():
             if key == "cls":
@@ -1476,7 +1476,7 @@ class DOMRenderer(Renderer):
                     el.setAttribute(key, "")
             elif value is not None:
                 el.setAttribute(key, str(value))
-        
+
         # Set inner content
         if node.text_content:
             el.textContent = node.text_content
@@ -1486,7 +1486,7 @@ class DOMRenderer(Renderer):
             for child in node.children:
                 child_el = self.render_node(child)
                 el.appendChild(child_el)
-        
+
         return el
 
     def render_text(self, content: str) -> Any:
@@ -1544,7 +1544,7 @@ def test_component_decorator_marks_function():
     async def MyComponent():
         with Div():
             pass
-    
+
     assert hasattr(MyComponent, "_is_flow_component")
     assert MyComponent._is_flow_component is True
 
@@ -1556,7 +1556,7 @@ def test_component_can_be_called():
             with Text("Hello"):
                 pass
         return root
-    
+
     result = asyncio.run(SimpleComponent())
     assert result is not None
     assert result.tag == "Div"
@@ -1568,7 +1568,7 @@ def test_component_with_props():
         with Text(f"Hello, {name}!") as el:
             pass
         return el
-    
+
     result = asyncio.run(Greeting(name="World"))
     assert result.content == "Hello, World!"
 
@@ -1579,14 +1579,14 @@ def test_component_nesting():
         with Text("Inner") as el:
             pass
         return el
-    
+
     @component
     async def Outer():
         with Div() as root:
             inner_result = await Inner()
             # In real usage, inner would be composed
         return root
-    
+
     result = asyncio.run(Outer())
     assert result.tag == "Div"
 ```
@@ -1611,7 +1611,7 @@ R = TypeVar("R")
 def component(fn: Callable[P, R]) -> Callable[P, R]:
     """
     Decorator that marks an async function as a Flow component.
-    
+
     Components are async functions that build UI using context managers.
     They can receive props as parameters and optionally use dependency injection.
     """
@@ -1622,11 +1622,11 @@ def component(fn: Callable[P, R]) -> Callable[P, R]:
         # 2. Inject them into the call
         # 3. Track the component in the render tree
         return await fn(*args, **kwargs)
-    
+
     # Mark as a component for introspection
     wrapper._is_flow_component = True
     wrapper._original_fn = fn
-    
+
     return wrapper
 ```
 
@@ -1671,7 +1671,7 @@ def test_provide_registers_instance():
     clear_providers()
     state = AppState(count=Signal(0), name=Signal("Test"))
     provide(AppState, state)
-    
+
     retrieved = get_provider(AppState)
     assert retrieved is state
 
@@ -1680,16 +1680,16 @@ def test_component_receives_injected_dependency():
     clear_providers()
     state = AppState(count=Signal(42), name=Signal("Injected"))
     provide(AppState, state)
-    
+
     received_state = None
-    
+
     @component
     async def MyComponent(state: AppState):
         nonlocal received_state
         received_state = state
-    
+
     asyncio.run(MyComponent())
-    
+
     assert received_state is state
     assert received_state.count.value == 42
 
@@ -1698,29 +1698,29 @@ def test_component_with_mixed_args():
     clear_providers()
     state = AppState(count=Signal(0), name=Signal(""))
     provide(AppState, state)
-    
+
     @component
     async def Greeting(name: str, state: AppState):
         state.name.value = name
-    
+
     asyncio.run(Greeting(name="Alice"))
-    
+
     assert state.name.value == "Alice"
 
 def test_lazy_annotation_handles_forward_refs():
     """PEP 649: Forward references are resolved lazily."""
     clear_providers()
-    
+
     # This would crash with eager get_type_hints() if Service
     # was defined after the component, but works with lazy eval
     @dataclass
     class Service:
         name: str
-    
+
     @component
     async def UsesService(svc: Service):
         return svc.name
-    
+
     provide(Service, Service(name="MyService"))
     result = asyncio.run(UsesService())
     assert result == "MyService"
@@ -1728,18 +1728,18 @@ def test_lazy_annotation_handles_forward_refs():
 def test_circular_dependency_pattern():
     """PEP 649: Circular type references don't crash."""
     clear_providers()
-    
+
     # Simulates enterprise pattern: User <-> Auth circular dependency
     # With PEP 649, these forward refs are evaluated lazily
-    
+
     @dataclass
     class AuthContext:
         user_id: int
-    
+
     @component
     async def SecureComponent(auth: AuthContext):
         return auth.user_id
-    
+
     provide(AuthContext, AuthContext(user_id=42))
     result = asyncio.run(SecureComponent())
     assert result == 42
@@ -1807,7 +1807,7 @@ R = TypeVar("R")
 def _get_lazy_annotations(fn: Callable) -> dict[str, Any]:
     """
     Get type annotations with deferred evaluation (PEP 649 compatible).
-    
+
     In Python 3.14+, uses annotationlib for lazy evaluation.
     Falls back to get_type_hints with error handling for older versions.
     """
@@ -1817,13 +1817,13 @@ def _get_lazy_annotations(fn: Callable) -> dict[str, Any]:
             import annotationlib
             # Get annotations in VALUE format (fully resolved)
             return annotationlib.get_annotations(
-                fn, 
+                fn,
                 format=annotationlib.Format.VALUE,
                 eval_str=True
             )
         except Exception:
             pass
-    
+
     # Python 3.12-3.13: Use get_type_hints with delayed evaluation
     try:
         from typing import get_type_hints
@@ -1838,10 +1838,10 @@ def _get_lazy_annotations(fn: Callable) -> dict[str, Any]:
 def component(fn: Callable[P, R]) -> Callable[P, R]:
     """
     Decorator that marks an async function as a Flow component.
-    
+
     Components are async functions that build UI using context managers.
     They can receive props as parameters and use dependency injection.
-    
+
     Uses PEP 649 deferred annotation evaluation to support:
     - Forward references
     - Circular dependencies (enterprise patterns)
@@ -1852,38 +1852,38 @@ def component(fn: Callable[P, R]) -> Callable[P, R]:
         # LAZY: Get type hints only when component is actually called
         # This enables circular dependencies and forward references
         hints = _get_lazy_annotations(fn)
-        
+
         sig = inspect.signature(fn)
         params = list(sig.parameters.keys())
-        
+
         # Build the full kwargs with injected dependencies
         final_kwargs = dict(kwargs)
-        
+
         # Count positional args already provided
         provided_positional = len(args)
-        
+
         for i, param_name in enumerate(params):
             # Skip if already provided as positional arg
             if i < provided_positional:
                 continue
-            
+
             # Skip if already provided as keyword arg
             if param_name in final_kwargs:
                 continue
-            
+
             # Try to inject based on type hint
             if param_name in hints:
                 hint_type = hints[param_name]
                 provider = get_provider(hint_type)
                 if provider is not None:
                     final_kwargs[param_name] = provider
-        
+
         return await fn(*args, **final_kwargs)
-    
+
     # Mark as a component for introspection
     wrapper._is_flow_component = True
     wrapper._original_fn = fn
-    
+
     return wrapper
 ```
 
@@ -1915,29 +1915,29 @@ def test_computed_returns_value():
     """Computed property returns calculated value."""
     a = Signal(2)
     b = Signal(3)
-    
+
     @Computed
     def sum_ab():
         return a.value + b.value
-    
+
     assert sum_ab() == 5
 
 def test_computed_caches_result():
     """Computed caches until dependencies change."""
     call_count = 0
     a = Signal(10)
-    
+
     @Computed
     def expensive():
         nonlocal call_count
         call_count += 1
         return a.value * 2
-    
+
     # First call computes
     result1 = expensive()
     assert result1 == 20
     assert call_count == 1
-    
+
     # Second call uses cache
     result2 = expensive()
     assert result2 == 20
@@ -1946,13 +1946,13 @@ def test_computed_caches_result():
 def test_computed_invalidates_on_signal_change():
     """Computed re-calculates when signal changes."""
     x = Signal(5)
-    
+
     @Computed
     def doubled():
         return x.value * 2
-    
+
     assert doubled() == 10
-    
+
     x.value = 7
     assert doubled() == 14
 
@@ -1961,16 +1961,16 @@ def test_computed_tracks_multiple_signals():
     a = Signal(1)
     b = Signal(2)
     c = Signal(3)
-    
+
     @Computed
     def total():
         return a.value + b.value + c.value
-    
+
     assert total() == 6
-    
+
     b.value = 10
     assert total() == 14
-    
+
     c.value = 20
     assert total() == 31
 ```
@@ -2004,7 +2004,7 @@ def get_evaluating_computed() -> Optional["Computed"]:
 class Computed(Generic[T]):
     """
     A memoized computed value that tracks Signal dependencies.
-    
+
     Automatically re-computes when any accessed Signal changes.
     """
 
@@ -2024,7 +2024,7 @@ class Computed(Generic[T]):
         """Recompute the value while tracking dependencies."""
         # Clear old dependencies
         self._dependencies.clear()
-        
+
         # Set self as the currently evaluating computed
         token: Token = _evaluating_computed.set(self)
         try:
@@ -2050,17 +2050,17 @@ class Computed(Generic[T]):
         """Get the current value and track effect/computed dependency."""
         from flow.effect import get_running_effect
         from flow.computed import get_evaluating_computed
-        
+
         # Track effect dependency
         effect = get_running_effect()
         if effect is not None:
             self._effects.add(effect)
-        
+
         # Track computed dependency
         computed = get_evaluating_computed()
         if computed is not None:
             self._computeds.add(computed)
-        
+
         return self._value
 
 # Add to __init__:
@@ -2071,10 +2071,10 @@ class Computed(Generic[T]):
         """Notify all subscribers, effects, and computeds of a value change."""
         for subscriber in self._subscribers:
             subscriber()
-        
+
         for effect in list(self._effects):
             effect.run()
-        
+
         for computed in list(self._computeds):
             computed.invalidate()
 ```
@@ -2121,7 +2121,7 @@ def test_session_stores_root_component():
     """LiveSession stores the root component."""
     mock_ws = AsyncMock()
     root = Div()
-    
+
     session = LiveSession(root, mock_ws)
     assert session.root_component is root
 
@@ -2129,7 +2129,7 @@ def test_session_has_update_queue():
     """LiveSession has an asyncio queue for updates."""
     mock_ws = AsyncMock()
     session = LiveSession(Div(), mock_ws)
-    
+
     assert session.queue is not None
     assert isinstance(session.queue, asyncio.Queue)
 
@@ -2137,23 +2137,23 @@ def test_session_can_queue_updates():
     """Updates can be queued for sending."""
     mock_ws = AsyncMock()
     session = LiveSession(Div(), mock_ws)
-    
+
     node = Text("Updated")
     session.queue_update(node)
-    
+
     assert not session.queue.empty()
 
 async def test_session_initial_render():
     """Session sends initial HTML on start."""
     mock_ws = AsyncMock()
-    
+
     with Div(cls="root") as root:
         with Text("Hello"):
             pass
-    
+
     session = LiveSession(root, mock_ws)
     await session.send_initial_render()
-    
+
     mock_ws.send_text.assert_called_once()
     sent_html = mock_ws.send_text.call_args[0][0]
     assert "Hello" in sent_html
@@ -2163,9 +2163,9 @@ def test_session_uses_renderer_protocol():
     """LiveSession uses Renderer Protocol, not hardcoded to_html."""
     mock_ws = AsyncMock()
     root = Div(cls="test")
-    
+
     session = LiveSession(root, mock_ws)
-    
+
     # Session should use HTMLRenderer internally
     assert session.renderer is not None
     assert isinstance(session.renderer, HTMLRenderer)
@@ -2220,7 +2220,7 @@ socket.onmessage = (event) => {
 class LiveSession:
     """
     Manages the live connection between a Python UI tree and a browser.
-    
+
     Optimized for Python 3.14+ No-GIL builds:
     - Diff calculation runs in ThreadPoolExecutor (truly parallel)
     - AsyncIO handles I/O only (WebSocket send/receive)
@@ -2228,8 +2228,8 @@ class LiveSession:
     """
 
     def __init__(
-        self, 
-        root_component: "Element", 
+        self,
+        root_component: "Element",
         websocket: Any,
         renderer: Renderer | None = None,
     ) -> None:
@@ -2248,7 +2248,7 @@ class LiveSession:
         """Send the initial full HTML render to the client."""
         # Renderer Protocol: Not hardcoded to_html!
         full_html = self.renderer.render(self.root_component)
-        
+
         html_doc = f"""
 <!DOCTYPE html>
 <html>
@@ -2269,9 +2269,9 @@ class LiveSession:
         """Start the live session loops."""
         await self.socket.accept()
         await self.send_initial_render()
-        
+
         self._running = True
-        
+
         async with asyncio.TaskGroup() as tg:
             tg.create_task(self._incoming_loop())
             tg.create_task(self._outgoing_loop())
@@ -2289,11 +2289,11 @@ class LiveSession:
     async def _outgoing_loop(self) -> None:
         """Send queued updates to the browser (No-GIL optimized)."""
         loop = asyncio.get_running_loop()
-        
+
         while self._running:
             try:
                 node = await asyncio.wait_for(self.queue.get(), timeout=1.0)
-                
+
                 # NO-GIL OPTIMIZATION: Run diff/render in thread pool
                 # This is truly parallel in Python 3.14+ free-threaded builds
                 html = await loop.run_in_executor(
@@ -2301,14 +2301,14 @@ class LiveSession:
                     self.renderer.render,  # Renderer Protocol!
                     node
                 )
-                
+
                 patch = {
                     "op": "replace",
                     "target_id": f"flow-{id(node)}",
                     "html": html,
                 }
                 await self.socket.send_json(patch)
-                
+
             except asyncio.TimeoutError:
                 continue
             except Exception:
@@ -2373,9 +2373,9 @@ def test_app_serves_html_on_root():
     """App serves HTML on GET /."""
     app = create_app(SimpleApp)
     client = TestClient(app)
-    
+
     response = client.get("/")
-    
+
     assert response.status_code == 200
     assert "text/html" in response.headers["content-type"]
     assert "Hello from Flow!" in response.text
@@ -2383,7 +2383,7 @@ def test_app_serves_html_on_root():
 def test_app_has_websocket_endpoint():
     """App exposes /ws WebSocket endpoint."""
     app = create_app(SimpleApp)
-    
+
     # Check that route exists
     routes = [r.path for r in app.routes]
     assert "/ws" in routes
@@ -2415,17 +2415,17 @@ def create_app(
 ) -> FastAPI:
     """
     Create a FastAPI app that serves a Flow component.
-    
+
     Args:
         root_component: An async function decorated with @component
         renderer: Optional Renderer (defaults to HTMLRenderer)
-        
+
     Returns:
         A configured FastAPI application
     """
     app = FastAPI(title="Flow App")
     _renderer = renderer or HTMLRenderer()
-    
+
     # Store sessions by connection
     sessions: dict[str, LiveSession] = {}
 
@@ -2435,7 +2435,7 @@ def create_app(
         # Render the component using Renderer Protocol
         root = await root_component()
         full_html = _renderer.render(root)  # Not hardcoded to_html!
-        
+
         html_doc = f"""
 <!DOCTYPE html>
 <html>
@@ -2456,7 +2456,7 @@ def create_app(
                 if (el) el.outerHTML = patch.html;
             }}
         }};
-        
+
         document.addEventListener('click', (e) => {{
             const id = e.target.id;
             if (id && id.startsWith('flow-')) {{
@@ -2476,14 +2476,14 @@ def create_app(
     async def websocket_endpoint(websocket: WebSocket) -> None:
         """Handle WebSocket connections for live updates."""
         await websocket.accept()
-        
+
         # Render component for this session (with shared renderer)
         root = await root_component()
         session = LiveSession(root, websocket, renderer=_renderer)
-        
+
         session_id = str(id(websocket))
         sessions[session_id] = session
-        
+
         try:
             # Keep connection alive and handle events
             while True:
@@ -2498,14 +2498,14 @@ def create_app(
 
 
 def run_app(
-    root_component: Callable[..., Any], 
-    host: str = "127.0.0.1", 
+    root_component: Callable[..., Any],
+    host: str = "127.0.0.1",
     port: int = 8000,
     renderer: Renderer | None = None,
 ) -> None:
     """Run a Flow app with uvicorn."""
     import uvicorn
-    
+
     app = create_app(root_component, renderer=renderer)
     uvicorn.run(app, host=host, port=port)
 ```
@@ -2554,32 +2554,32 @@ from flow.rpc import rpc, RpcRegistry
 def test_rpc_registers_function():
     """@rpc decorator registers function in registry."""
     RpcRegistry.clear()
-    
+
     @rpc
     async def my_server_function(x: int) -> int:
         return x * 2
-    
+
     assert "my_server_function" in RpcRegistry.routes
 
 def test_rpc_function_still_callable():
     """Decorated function can still be called directly."""
     RpcRegistry.clear()
-    
+
     @rpc
     async def add(a: int, b: int) -> int:
         return a + b
-    
+
     result = asyncio.run(add(2, 3))
     assert result == 5
 
 def test_rpc_stores_function_reference():
     """Registry stores the actual function."""
     RpcRegistry.clear()
-    
+
     @rpc
     async def compute():
         return 42
-    
+
     stored_fn = RpcRegistry.routes["compute"]
     result = asyncio.run(stored_fn())
     assert result == 42
@@ -2587,15 +2587,15 @@ def test_rpc_stores_function_reference():
 def test_rpc_multiple_functions():
     """Multiple functions can be registered."""
     RpcRegistry.clear()
-    
+
     @rpc
     async def func_a():
         pass
-    
+
     @rpc
     async def func_b():
         pass
-    
+
     assert len(RpcRegistry.routes) == 2
     assert "func_a" in RpcRegistry.routes
     assert "func_b" in RpcRegistry.routes
@@ -2624,14 +2624,14 @@ IS_SERVER = not (sys.platform == "emscripten" or sys.platform == "wasi")
 
 class RpcRegistry:
     """Registry for server-side RPC function implementations."""
-    
+
     routes: dict[str, Callable[..., Any]] = {}
-    
+
     @classmethod
     def clear(cls) -> None:
         """Clear all registered routes."""
         cls.routes.clear()
-    
+
     @classmethod
     def get(cls, name: str) -> Callable[..., Any] | None:
         """Get a registered function by name."""
@@ -2641,18 +2641,18 @@ class RpcRegistry:
 def rpc(func: Callable[P, R]) -> Callable[P, R]:
     """
     Decorator that registers a function as an RPC endpoint.
-    
+
     On the server: Registers the function and keeps it callable.
     On the client (Wasm): Would replace with a fetch() proxy.
     """
     if IS_SERVER:
         # Server mode: Register and return the original function
         RpcRegistry.routes[func.__name__] = func
-        
+
         @wraps(func)
         async def server_wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
             return await func(*args, **kwargs)
-        
+
         return server_wrapper
     else:
         # Client mode (Wasm): Would be replaced with fetch proxy
@@ -2734,7 +2734,7 @@ def test_encoder_handles_dataclass():
     )
     result = json.dumps(user, cls=FlowJSONEncoder)
     parsed = json.loads(result)
-    
+
     assert parsed["name"] == "Alice"
     assert "12345678-1234-5678-1234-567812345678" in parsed["id"]
     assert "2025-12-02" in parsed["created_at"]
@@ -2756,7 +2756,7 @@ def test_encoder_handles_nested_dataclass():
         id: UUID
         user: User
         total: Decimal
-    
+
     order = Order(
         id=uuid4(),
         user=User(
@@ -2766,10 +2766,10 @@ def test_encoder_handles_nested_dataclass():
         ),
         total=Decimal("99.99")
     )
-    
+
     result = json.dumps(order, cls=FlowJSONEncoder)
     parsed = json.loads(result)
-    
+
     assert parsed["user"]["name"] == "Bob"
     assert "99.99" in parsed["total"]
 ```
@@ -2793,52 +2793,52 @@ async def DummyApp():
 def test_rpc_endpoint_calls_function():
     """POST /api/rpc/{name} calls the registered function."""
     RpcRegistry.clear()
-    
+
     @rpc
     async def multiply(a: int, b: int) -> int:
         return a * b
-    
+
     app = create_app(DummyApp)
     client = TestClient(app)
-    
+
     response = client.post(
         "/api/rpc/multiply",
         json={"a": 6, "b": 7}
     )
-    
+
     assert response.status_code == 200
     assert response.json() == 42
 
 def test_rpc_endpoint_not_found():
     """POST to unknown function returns 404."""
     RpcRegistry.clear()
-    
+
     app = create_app(DummyApp)
     client = TestClient(app)
-    
+
     response = client.post(
         "/api/rpc/unknown_func",
         json={}
     )
-    
+
     assert response.status_code == 404
 
 def test_rpc_endpoint_with_string_result():
     """RPC can return string results."""
     RpcRegistry.clear()
-    
+
     @rpc
     async def greet(name: str) -> str:
         return f"Hello, {name}!"
-    
+
     app = create_app(DummyApp)
     client = TestClient(app)
-    
+
     response = client.post(
         "/api/rpc/greet",
         json={"name": "World"}
     )
-    
+
     assert response.status_code == 200
     assert response.json() == "Hello, World!"
 ```
@@ -2876,7 +2876,7 @@ import base64
 class FlowJSONEncoder(json.JSONEncoder):
     """
     Enterprise-grade JSON encoder for Flow RPC.
-    
+
     Developers don't need to manually convert objects to dicts.
     All common Python types are handled automatically.
     """
@@ -2889,31 +2889,31 @@ class FlowJSONEncoder(json.JSONEncoder):
             return obj.isoformat()
         if isinstance(obj, time):
             return obj.isoformat()
-        
+
         # UUID → string
         if isinstance(obj, UUID):
             return str(obj)
-        
+
         # Decimal → string (preserves precision)
         if isinstance(obj, Decimal):
             return str(obj)
-        
+
         # Enum → value
         if isinstance(obj, Enum):
             return obj.value
-        
+
         # dataclass → dict (recursive via asdict)
         if dataclasses.is_dataclass(obj) and not isinstance(obj, type):
             return self._encode_dataclass(obj)
-        
+
         # bytes → base64
         if isinstance(obj, bytes):
             return base64.b64encode(obj).decode("ascii")
-        
+
         # set/frozenset → list
         if isinstance(obj, (set, frozenset)):
             return list(obj)
-        
+
         # Fallback to default behavior
         return super().default(obj)
 
@@ -2960,22 +2960,22 @@ from fastapi.responses import JSONResponse
     async def rpc_handler(func_name: str, request: Request) -> JSONResponse:
         """Handle RPC calls from the client with robust serialization."""
         target_func = RpcRegistry.get(func_name)
-        
+
         if target_func is None:
             raise HTTPException(status_code=404, detail=f"RPC function '{func_name}' not found")
-        
+
         # Parse the request body as JSON
         try:
             data = await request.json()
         except Exception:
             data = {}
-        
+
         # Call the function with the provided arguments
         result = await target_func(**data)
-        
+
         # Serialize with FlowJSONEncoder (handles datetime, UUID, dataclasses, etc.)
         json_content = flow_json_dumps(result)
-        
+
         return JSONResponse(
             content=json.loads(json_content),  # FastAPI requires dict, not string
             media_type="application/json"
@@ -3050,9 +3050,9 @@ async def MyApp():
     with Div():
         pass
 '''
-    
+
     result = build_client_bundle(source)
-    
+
     assert "@component" in result
     assert "async def MyApp" in result
 
@@ -3068,9 +3068,9 @@ async def save_to_db(data: str):
     db.save(data)
     return "saved"
 '''
-    
+
     result = build_client_bundle(source)
-    
+
     assert "@rpc" in result
     assert "async def save_to_db" in result
     # Body should be stubbed
@@ -3087,9 +3087,9 @@ from flow import component
 async def App():
     pass
 '''
-    
+
     result = build_client_bundle(source)
-    
+
     assert "import sqlalchemy" not in result
     assert "import pandas" not in result
     assert "from flow import component" in result
@@ -3107,9 +3107,9 @@ class AppState:
 async def Counter(state: AppState):
     state.count.value += 1
 '''
-    
+
     result = build_client_bundle(source)
-    
+
     assert "class AppState" in result
     assert "count = Signal(0)" in result
     assert "state.count.value += 1" in result
@@ -3125,21 +3125,21 @@ from flow.compiler.importer import FlowImportHook, install_import_hook, uninstal
 def test_import_hook_can_be_installed():
     """Import hook can be added to sys.meta_path."""
     initial_count = len(sys.meta_path)
-    
+
     install_import_hook()
     assert len(sys.meta_path) == initial_count + 1
     assert any(isinstance(f, FlowImportHook) for f in sys.meta_path)
-    
+
     uninstall_import_hook()
     assert len(sys.meta_path) == initial_count
 
 def test_import_hook_transforms_client_modules():
     """Import hook transforms _client modules on-the-fly."""
     # This tests that when importing 'app_client', the hook:
-    # 1. Finds 'app.py' 
+    # 1. Finds 'app.py'
     # 2. Runs ClientSideSanitizer
     # 3. Returns transformed bytecode
-    
+
     install_import_hook()
     try:
         # The hook should handle this pattern
@@ -3166,8 +3166,8 @@ import sys
 import tempfile
 from pathlib import Path
 from flow.compiler.importer import (
-    FlowImportHook, 
-    install_import_hook, 
+    FlowImportHook,
+    install_import_hook,
     uninstall_import_hook,
     set_debug_mode,
     get_debug_output_dir,
@@ -3200,7 +3200,7 @@ def test_debug_mode_dumps_transformed_source():
     with tempfile.TemporaryDirectory() as tmpdir:
         debug_dir = Path(tmpdir) / ".flow-debug"
         set_debug_mode(True, output_dir=debug_dir)
-        
+
         # Create a test module
         source_dir = Path(tmpdir) / "src"
         source_dir.mkdir()
@@ -3217,20 +3217,20 @@ async def save_data(x: int):
 async def App():
     pass
 ''')
-        
+
         # The hook would transform and dump when importing
         transformed = build_client_bundle((source_dir / "myapp.py").read_text())
-        
+
         # Simulate what the hook does in debug mode
         debug_file = debug_dir / "myapp_client.py"
         debug_dir.mkdir(parents=True, exist_ok=True)
         debug_file.write_text(transformed)
-        
+
         assert debug_file.exists()
         content = debug_file.read_text()
         assert "sqlalchemy" not in content  # Server import removed
         assert "@component" in content  # Component preserved
-        
+
         set_debug_mode(False)
 
 def test_debug_output_includes_metadata():
@@ -3238,7 +3238,7 @@ def test_debug_output_includes_metadata():
     with tempfile.TemporaryDirectory() as tmpdir:
         debug_dir = Path(tmpdir) / ".flow-debug"
         debug_dir.mkdir(parents=True, exist_ok=True)
-        
+
         source = '''
 from flow import rpc
 @rpc
@@ -3246,7 +3246,7 @@ async def secret():
     return "password123"
 '''
         transformed = build_client_bundle(source)
-        
+
         # Debug file should have header comment
         debug_content = f'''# FLOW DEBUG OUTPUT
 # Original: test_app.py
@@ -3258,7 +3258,7 @@ async def secret():
 {transformed}
 '''
         (debug_dir / "test_app_client.py").write_text(debug_content)
-        
+
         content = (debug_dir / "test_app_client.py").read_text()
         assert "FLOW DEBUG OUTPUT" in content
         assert "Transformations applied" in content
@@ -3299,10 +3299,10 @@ class ClientSideSanitizer(ast.NodeTransformer):
             alias for alias in node.names
             if alias.name.split(".")[0] not in SERVER_ONLY_MODULES
         ]
-        
+
         if not remaining:
             return None
-        
+
         node.names = remaining
         return node
 
@@ -3346,7 +3346,7 @@ class ClientSideSanitizer(ast.NodeTransformer):
 def build_client_bundle(source_code: str) -> str:
     """
     Transform source code into a client-safe bundle.
-    
+
     - Removes server-only imports
     - Stubs @rpc function bodies
     - Preserves everything else
@@ -3361,16 +3361,16 @@ def build_client_bundle(source_code: str) -> str:
 def compile_client_bundle(source_code: str, filename: str = "<flow>") -> types.CodeType:
     """
     Compile source code to client-safe bytecode (for import hook).
-    
+
     Returns compiled code object, not source string.
     """
     import types
-    
+
     tree = ast.parse(source_code)
     sanitizer = ClientSideSanitizer()
     sanitized_tree = sanitizer.visit(tree)
     ast.fix_missing_locations(sanitized_tree)
-    
+
     return compile(sanitized_tree, filename, "exec")
 ```
 
@@ -3380,8 +3380,8 @@ def compile_client_bundle(source_code: str, filename: str = "<flow>") -> types.C
 """
 Import Hook for Zero-Build Development.
 
-Registers a sys.meta_path finder that intercepts imports of 
-'*_client' modules and transforms them on-the-fly using the 
+Registers a sys.meta_path finder that intercepts imports of
+'*_client' modules and transforms them on-the-fly using the
 AST splitter. No physical dist/ folder needed during dev.
 
 DEBUG MODE:
@@ -3391,12 +3391,12 @@ DEBUG MODE:
 Usage:
     from flow.compiler.importer import install_import_hook
     install_import_hook()
-    
+
     # Now 'import app_client' will:
     # 1. Find 'app.py'
     # 2. Transform via ClientSideSanitizer
     # 3. Execute transformed bytecode
-    
+
     # Debug mode (dumps to disk):
     FLOW_DEBUG=1 python app.py
 """
@@ -3440,18 +3440,18 @@ def _is_debug_enabled() -> bool:
 class FlowImportHook(importlib.abc.MetaPathFinder, importlib.abc.Loader):
     """
     Import hook that transforms '*_client' modules on-the-fly.
-    
+
     When you import 'myapp_client', this finder:
     1. Looks for 'myapp.py' in the same directory
     2. Reads the source
     3. Runs ClientSideSanitizer AST transformer
     4. Compiles and executes the transformed bytecode
-    
+
     DEBUG MODE (FLOW_DEBUG=1):
     - Dumps transformed source to .flow-debug/ directory
     - Includes metadata comments for troubleshooting
     - Helps debug AST transformation issues
-    
+
     No physical file is created in normal mode - everything happens in memory.
     """
 
@@ -3467,17 +3467,17 @@ class FlowImportHook(importlib.abc.MetaPathFinder, importlib.abc.Loader):
         target: object | None = None,
     ) -> importlib.machinery.ModuleSpec | None:
         """Find module spec for '*_client' modules."""
-        
+
         # Only handle modules ending in '_client'
         if not fullname.endswith("_client"):
             return None
-        
+
         # Derive the original module name
         original_name = fullname[:-7]  # Remove '_client' suffix
-        
+
         # Try to find the original .py file
         search_paths = path or sys.path
-        
+
         for search_path in search_paths:
             original_path = Path(search_path) / f"{original_name}.py"
             if original_path.exists():
@@ -3486,7 +3486,7 @@ class FlowImportHook(importlib.abc.MetaPathFinder, importlib.abc.Loader):
                     loader=self,
                     origin=str(original_path),
                 )
-        
+
         return None
 
     def create_module(self, spec: importlib.machinery.ModuleSpec) -> None:
@@ -3498,14 +3498,14 @@ class FlowImportHook(importlib.abc.MetaPathFinder, importlib.abc.Loader):
         spec = module.__spec__
         if spec is None or spec.origin is None:
             raise ImportError(f"Cannot load module without origin: {module}")
-        
+
         origin_path = Path(spec.origin)
-        
+
         with self._lock:
             # Check cache
             cache_key = str(origin_path)
             mtime = origin_path.stat().st_mtime
-            
+
             cached = self._cache.get(cache_key)
             if cached and cached[0] == mtime:
                 code = cached[1]
@@ -3514,28 +3514,28 @@ class FlowImportHook(importlib.abc.MetaPathFinder, importlib.abc.Loader):
                 source = origin_path.read_text(encoding="utf-8")
                 code = compile_client_bundle(source, str(origin_path))
                 self._cache[cache_key] = (mtime, code)
-                
+
                 # DEBUG MODE: Dump transformed source to disk
                 if self._debug_mode:
                     self._dump_debug_output(spec.name, origin_path, source)
-        
+
         # Execute in module's namespace
         exec(code, module.__dict__)
 
     def _dump_debug_output(
-        self, 
-        module_name: str, 
-        origin_path: Path, 
+        self,
+        module_name: str,
+        origin_path: Path,
         original_source: str
     ) -> None:
         """Dump transformed source to disk for debugging (HIGH-RISK mitigation)."""
         try:
             debug_dir = get_debug_output_dir()
             debug_dir.mkdir(parents=True, exist_ok=True)
-            
+
             # Generate transformed source (for human inspection)
             transformed = build_client_bundle(original_source)
-            
+
             # Create debug file with metadata header
             debug_file = debug_dir / f"{module_name}.py"
             debug_content = f'''# FLOW DEBUG OUTPUT
@@ -3556,13 +3556,13 @@ class FlowImportHook(importlib.abc.MetaPathFinder, importlib.abc.Loader):
 {transformed}
 '''
             debug_file.write_text(debug_content)
-            
+
             # Log to stderr for visibility
             print(
                 f"[FLOW DEBUG] Dumped transformed source: {debug_file}",
                 file=sys.stderr
             )
-            
+
         except Exception as e:
             # Debug dump should never break the import
             print(
@@ -3578,18 +3578,18 @@ _import_hook: FlowImportHook | None = None
 def install_import_hook(debug: bool = False) -> None:
     """
     Install the Flow import hook for zero-build development.
-    
+
     Args:
         debug: Enable debug mode (dumps transformed source to disk)
     """
     global _import_hook
-    
+
     if debug:
         set_debug_mode(True)
-    
+
     if _import_hook is not None:
         return  # Already installed
-    
+
     _import_hook = FlowImportHook()
     sys.meta_path.insert(0, _import_hook)
 
@@ -3597,7 +3597,7 @@ def install_import_hook(debug: bool = False) -> None:
 def uninstall_import_hook() -> None:
     """Remove the Flow import hook."""
     global _import_hook
-    
+
     if _import_hook is not None:
         sys.meta_path.remove(_import_hook)
         _import_hook = None
@@ -3610,8 +3610,8 @@ def uninstall_import_hook() -> None:
 
 from flow.compiler.splitter import build_client_bundle, compile_client_bundle
 from flow.compiler.importer import (
-    install_import_hook, 
-    uninstall_import_hook, 
+    install_import_hook,
+    uninstall_import_hook,
     FlowImportHook,
     set_debug_mode,
     get_debug_output_dir,
@@ -3659,7 +3659,7 @@ def test_cli_has_build_command():
     """CLI has a 'build' command."""
     runner = CliRunner()
     result = runner.invoke(cli, ["build", "--help"])
-    
+
     assert result.exit_code == 0
     assert "build" in result.output.lower()
 
@@ -3667,13 +3667,13 @@ def test_cli_has_dev_command():
     """CLI has a 'dev' command."""
     runner = CliRunner()
     result = runner.invoke(cli, ["dev", "--help"])
-    
+
     assert result.exit_code == 0
 
 def test_cli_build_creates_output():
     """CLI build command creates output files."""
     runner = CliRunner()
-    
+
     with tempfile.TemporaryDirectory() as tmpdir:
         # Create a sample app file
         app_file = Path(tmpdir) / "app.py"
@@ -3686,15 +3686,15 @@ async def App():
     with Div():
         pass
 ''')
-        
+
         dist_dir = Path(tmpdir) / "dist"
-        
+
         result = runner.invoke(cli, [
             "build",
             str(app_file),
             "--output", str(dist_dir)
         ])
-        
+
         assert result.exit_code == 0
         assert dist_dir.exists()
 
@@ -3702,7 +3702,7 @@ def test_cli_version():
     """CLI shows version."""
     runner = CliRunner()
     result = runner.invoke(cli, ["--version"])
-    
+
     assert result.exit_code == 0
     assert "0.1.0" in result.output
 ```
@@ -3752,29 +3752,29 @@ def cli() -> None:
 def build(app_file: str, output: str) -> None:
     """Build a Flow app for production deployment."""
     from flow.compiler.splitter import build_client_bundle
-    
+
     app_path = Path(app_file)
     output_path = Path(output)
-    
+
     click.echo(f"Building {app_path.name} for production...")
-    
+
     # Read source
     source = app_path.read_text()
-    
+
     # Generate client bundle (physical file for production)
     client_code = build_client_bundle(source)
-    
+
     # Create output directory
     output_path.mkdir(parents=True, exist_ok=True)
-    
+
     # Write client bundle
     client_file = output_path / f"{app_path.stem}_client.py"
     client_file.write_text(client_code)
-    
+
     # Copy original as server bundle
     server_file = output_path / f"{app_path.stem}_server.py"
     server_file.write_text(source)
-    
+
     click.echo(f"✓ Client bundle: {client_file}")
     click.echo(f"✓ Server bundle: {server_file}")
     click.echo(f"Build complete: {output_path}")
@@ -3788,62 +3788,62 @@ def build(app_file: str, output: str) -> None:
 def dev(app_file: str, host: str, port: int, debug: bool) -> None:
     """
     Run a Flow app in development mode (Zero-Build).
-    
+
     Uses import hook for on-the-fly AST transformation.
     No dist/ folder created - everything in memory.
-    
+
     Debug mode (--debug or FLOW_DEBUG=1): Dumps transformed source
     to .flow-debug/ directory for troubleshooting AST transformations.
     """
     import importlib.util
     import sys
-    
+
     from flow.server.app import run_app
     from flow.compiler.importer import install_import_hook, set_debug_mode
-    
+
     app_path = Path(app_file)
-    
+
     click.echo(f"🚀 Starting Flow dev server (Zero-Build Mode)...")
     click.echo(f"   Python {sys.version_info.major}.{sys.version_info.minor} (No-GIL: {'enabled' if hasattr(sys, 'getswitchinterval') else 'unknown'})")
-    
+
     # DEBUG MODE: Enable if --debug flag or FLOW_DEBUG env var
     if debug:
         set_debug_mode(True)
         click.echo(f"   ⚠️  Debug mode: Transformed source will be dumped to .flow-debug/")
-    
+
     # ZERO-BUILD: Install import hook for on-the-fly transformation
     install_import_hook(debug=debug)
     click.echo(f"   Import hook installed for zero-build development")
-    
+
     click.echo(f"   Loading {app_path.name}...")
-    
+
     # Add app directory to path for imports
     app_dir = str(app_path.parent.absolute())
     if app_dir not in sys.path:
         sys.path.insert(0, app_dir)
-    
+
     # Load the app module dynamically
     spec = importlib.util.spec_from_file_location("app", app_path)
     if spec is None or spec.loader is None:
         click.echo("Error: Could not load app file", err=True)
         return
-    
+
     module = importlib.util.module_from_spec(spec)
     sys.modules["app"] = module
     spec.loader.exec_module(module)
-    
+
     # Look for the main component (named App or main)
     app_component = getattr(module, "App", None) or getattr(module, "main", None)
-    
+
     if app_component is None:
         click.echo("Error: No App or main component found", err=True)
         return
-    
+
     click.echo(f"")
     click.echo(f"   ✅ Ready at http://{host}:{port}")
     click.echo(f"   Press Ctrl+C to stop")
     click.echo(f"")
-    
+
     run_app(app_component, host=host, port=port)
 
 
@@ -3905,7 +3905,7 @@ def test_all_core_exports():
         # Injection
         provide,
     )
-    
+
     assert all([
         Element, Signal, Effect,
         component, Computed,
@@ -3915,13 +3915,13 @@ def test_all_core_exports():
 def test_ui_submodule():
     """UI elements are accessible via flow.ui."""
     from flow.ui import Div, Text, Button, Input, VStack, HStack
-    
+
     assert all([Div, Text, Button, Input, VStack, HStack])
 
 def test_server_submodule():
     """Server utilities are accessible via flow.server."""
     from flow.server import create_app, LiveSession
-    
+
     assert all([create_app, LiveSession])
 ```
 
@@ -3997,17 +3997,17 @@ class CounterState:
 def test_full_counter_app():
     """Integration test: Full counter app works end-to-end."""
     RpcRegistry.clear()
-    
+
     # State
     state = CounterState(count=Signal(0))
     provide(CounterState, state)
-    
+
     # RPC
     @rpc
     async def increment():
         state.count.value += 1
         return state.count.value
-    
+
     # Component
     @component
     async def CounterApp(state: CounterState):
@@ -4017,38 +4017,38 @@ def test_full_counter_app():
             with Button("Increment", on_click=increment):
                 pass
         return root
-    
+
     # Create app
     app = create_app(CounterApp)
     client = TestClient(app)
-    
+
     # Test initial render
     response = client.get("/")
     assert response.status_code == 200
     assert "Count: 0" in response.text
-    
+
     # Test RPC
     response = client.post("/api/rpc/increment", json={})
     assert response.status_code == 200
     assert response.json() == 1
-    
+
     # State was updated
     assert state.count.value == 1
 
 def test_reactive_updates():
     """Integration test: Signal changes trigger effects."""
     effects_run = []
-    
+
     count = Signal(0)
-    
+
     from flow import Effect
     Effect(lambda: effects_run.append(count.value))
-    
+
     assert effects_run == [0]  # Initial
-    
+
     count.value = 1
     assert effects_run == [0, 1]
-    
+
     count.value = 2
     assert effects_run == [0, 1, 2]
 ```
@@ -4104,13 +4104,13 @@ async def App(state: CounterState):
                 cls="text-3xl font-bold text-white mb-6"
             ):
                 pass
-            
+
             with Text(
                 f"{state.count.value}",
                 cls="text-6xl font-mono text-blue-400 mb-6"
             ):
                 pass
-            
+
             with Div(cls="flex gap-4"):
                 with Button(
                     "-",
@@ -4124,7 +4124,7 @@ async def App(state: CounterState):
                     cls="px-6 py-3 bg-green-500 text-white rounded-lg text-2xl hover:bg-green-600"
                 ):
                     pass
-    
+
     return root
 
 
@@ -4229,4 +4229,3 @@ Plan saved to `docs/plans/2025-12-02-flow-framework.md`.
 **Ready to execute?**
 
 If yes, I will trigger the `execution-workflow.mdc` and begin implementing Phase 1 (Core Engine) with all Steering Council amendments incorporated.
-

@@ -62,7 +62,7 @@ Format:
 
 **User**: "/context"
 
-**Response**: 
+**Response**:
 ```
 ## Project Status
 
@@ -88,4 +88,3 @@ Format:
 ## Workflow Reference
 
 Full workflow: `@.cursor/rules/context-check.mdc`
-

@@ -58,4 +58,3 @@ Immediately load and follow the steps in the selected `.cursor/rules/[workflow-f
 
 ## Critical Rule
 **NEVER** start coding without an active workflow. If no specific workflow fits, start with `brainstorming-workflow.mdc` to figure out the path forward.
-

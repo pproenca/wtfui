@@ -1,6 +1,6 @@
 ---
 description: Use for security-focused code reviews (OWASP, vulnerabilities, auth/authz)
-globs: 
+globs:
 ---
 
 # Security Review Workflow

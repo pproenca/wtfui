@@ -45,4 +45,3 @@ Trigger: `.cursor/rules/execution-workflow.mdc`
 
 ## Critical Rule
 **NEVER** start coding without a plan. If no plan exists, route the user to `.cursor/commands/plan.md` or `planning-workflow.mdc` to create one.
-

@@ -1,6 +1,6 @@
 ---
 description: Use to generate Mermaid diagrams for plans and documentation
-globs: 
+globs:
 ---
 
 # Diagram Generation Workflow

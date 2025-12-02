@@ -182,4 +182,3 @@ git worktree remove <worktree-path>
 - Present exactly 4 options
 - Get typed confirmation for Option 4
 - Clean up worktree for Options 1 & 4 only
-

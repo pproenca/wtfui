@@ -78,4 +78,3 @@ After adding note "Completed Cursor conversion":
 ## Workflow Reference
 
 Full workflow: `@.cursor/rules/session-notes.mdc`
-

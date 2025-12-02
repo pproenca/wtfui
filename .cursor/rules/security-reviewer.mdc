@@ -1,6 +1,6 @@
 ---
 description: Use for security-focused code reviews - OWASP vulnerabilities, static analysis, production reliability, and DevSecOps
-globs: 
+globs:
 ---
 
 # Security Reviewer

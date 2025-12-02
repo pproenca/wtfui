@@ -1,6 +1,6 @@
 ---
 description: Use for implementing any code changes (features or bugfixes)
-globs: 
+globs:
 ---
 
 # TDD Workflow

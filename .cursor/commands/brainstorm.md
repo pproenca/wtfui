@@ -49,4 +49,3 @@ You are starting a **Brainstorming Session**. Your goal is to turn a rough idea 
 ## Workflow Reference
 
 Full workflow: `@.cursor/rules/brainstorming-workflow.mdc`
-

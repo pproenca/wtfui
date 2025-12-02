@@ -1,6 +1,6 @@
 ---
 description: Use when reviewing completed work against plans - dispatches code review analysis with structured output (Strengths, Issues, Verdict)
-globs: 
+globs:
 ---
 
 # Code Reviewer
