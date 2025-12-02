@@ -171,3 +171,9 @@ exclude_lines = [
 ]
 fail_under = 80
 show_missing = true
+
+[dependency-groups]
+dev = [
+    "playwright>=1.56.0",
+    "pytest-playwright>=0.7.2",
+]
