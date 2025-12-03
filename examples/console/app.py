@@ -720,7 +720,7 @@ async def main_async(width: int, height: int) -> None:
 
         try:
             # Wait for either to complete (quit signal)
-            done, pending = await asyncio.wait(
+            _done, pending = await asyncio.wait(
                 [input_task, render_task],
                 return_when=asyncio.FIRST_COMPLETED,
             )
