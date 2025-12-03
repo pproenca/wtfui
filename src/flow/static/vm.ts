@@ -1,0 +1,296 @@
+// src/flow/static/vm.ts
+/**
+ * FlowByte Virtual Machine - Browser runtime for .fbc binaries.
+ *
+ * A lightweight (~3KB) VM that executes FlowByte bytecode directly
+ * from an ArrayBuffer, achieving zero parse time.
+ */
+
+import { createSignal, createEffect, Signal } from './reactivity.js';
+
+// OpCode Mapping (Must match Python opcodes.py)
+const OPS = {
+    INIT_SIG_NUM: 0x01,
+    INIT_SIG_STR: 0x02,
+    SET_SIG_NUM:  0x03,
+    ADD:          0x20,
+    SUB:          0x21,
+    INC_CONST:    0x25,
+    JMP_TRUE:     0x40,
+    JMP_FALSE:    0x41,
+    JMP:          0x42,
+    DOM_CREATE:   0x60,
+    DOM_APPEND:   0x61,
+    DOM_TEXT:     0x62,
+    DOM_BIND_TEXT: 0x63,
+    DOM_ON_CLICK: 0x64,
+    DOM_ATTR_CLASS: 0x65,
+    RPC_CALL:     0x90,
+    HALT:         0xFF
+} as const;
+
+// Magic header "FLOW" + version
+const MAGIC = [0x46, 0x4C, 0x4F, 0x57]; // "FLOW"
+
+export class FlowVM {
+    // Memory Banks
+    signals = new Map<number, Signal<any>>();
+    nodes = new Map<number, HTMLElement | Text>();
+    strings: string[] = [];
+
+    // Program Code
+    view: DataView | null = null;
+
+    // Root element for mounting
+    root: HTMLElement | null = null;
+
+    /**
+     * Load and execute a FlowByte binary from URL.
+     */
+    async load(url: string): Promise<void> {
+        const response = await fetch(url);
+        const buffer = await response.arrayBuffer();
+        this.view = new DataView(buffer);
+
+        // 1. Verify Magic Header
+        for (let i = 0; i < 4; i++) {
+            if (this.view.getUint8(i) !== MAGIC[i]) {
+                throw new Error('Invalid FlowByte binary: bad magic header');
+            }
+        }
+
+        // Skip header (6 bytes: FLOW + 2 version bytes)
+        let offset = 6;
+
+        // 2. Parse String Table
+        offset = this.parseStringTable(offset);
+
+        // 3. Get root element
+        this.root = document.getElementById('root') || document.body;
+
+        // 4. Execute Code Section
+        this.execute(offset);
+    }
+
+    /**
+     * Parse the string table section.
+     * Format: [COUNT: u16] [LEN: u16, BYTES...]...
+     */
+    private parseStringTable(offset: number): number {
+        const count = this.view!.getUint16(offset, false); // Big Endian
+        offset += 2;
+
+        const decoder = new TextDecoder();
+        for (let i = 0; i < count; i++) {
+            const len = this.view!.getUint16(offset, false);
+            offset += 2;
+
+            const bytes = new Uint8Array(this.view!.buffer, offset, len);
+            this.strings.push(decoder.decode(bytes));
+            offset += len;
+        }
+
+        return offset;
+    }
+
+    /**
+     * The Main CPU Loop.
+     * @param pc Program Counter (Byte Offset)
+     */
+    execute(pc: number): void {
+        if (!this.view) return;
+        const view = this.view;
+        let running = true;
+
+        while (running && pc < view.byteLength) {
+            const op = view.getUint8(pc++);
+
+            switch (op) {
+                // --- STATE ---
+                case OPS.INIT_SIG_NUM: {
+                    const id = view.getUint16(pc, false); pc += 2;
+                    const val = view.getFloat64(pc, false); pc += 8;
+                    this.signals.set(id, createSignal(val));
+                    break;
+                }
+
+                case OPS.INIT_SIG_STR: {
+                    const id = view.getUint16(pc, false); pc += 2;
+                    const strId = view.getUint16(pc, false); pc += 2;
+                    this.signals.set(id, createSignal(this.strings[strId]));
+                    break;
+                }
+
+                case OPS.SET_SIG_NUM: {
+                    const id = view.getUint16(pc, false); pc += 2;
+                    const val = view.getFloat64(pc, false); pc += 8;
+                    const signal = this.signals.get(id);
+                    if (signal) signal.value = val;
+                    break;
+                }
+
+                case OPS.INC_CONST: {
+                    const tgtId = view.getUint16(pc, false); pc += 2;
+                    const amount = view.getFloat64(pc, false); pc += 8;
+                    const target = this.signals.get(tgtId);
+                    if (target) target.value += amount;
+                    break;
+                }
+
+                // --- ARITHMETIC ---
+                case OPS.ADD: {
+                    const tgtId = view.getUint16(pc, false); pc += 2;
+                    const srcA = view.getUint16(pc, false); pc += 2;
+                    const srcB = view.getUint16(pc, false); pc += 2;
+
+                    const sigA = this.signals.get(srcA);
+                    const sigB = this.signals.get(srcB);
+                    const target = this.signals.get(tgtId);
+
+                    if (target && sigA && sigB) {
+                        target.value = sigA.value + sigB.value;
+                    }
+                    break;
+                }
+
+                // --- DOM ---
+                case OPS.DOM_CREATE: {
+                    const nodeId = view.getUint16(pc, false); pc += 2;
+                    const tagStrId = view.getUint16(pc, false); pc += 2;
+                    const tagName = this.strings[tagStrId];
+
+                    const el = document.createElement(tagName);
+                    this.nodes.set(nodeId, el);
+                    break;
+                }
+
+                case OPS.DOM_TEXT: {
+                    const nodeId = view.getUint16(pc, false); pc += 2;
+                    const strId = view.getUint16(pc, false); pc += 2;
+                    const el = this.nodes.get(nodeId);
+                    if (el) el.textContent = this.strings[strId];
+                    break;
+                }
+
+                case OPS.DOM_APPEND: {
+                    const parentId = view.getUint16(pc, false); pc += 2;
+                    const childId = view.getUint16(pc, false); pc += 2;
+
+                    const child = this.nodes.get(childId);
+                    if (!child) break;
+
+                    if (parentId === 0) {
+                        // Append to root
+                        this.root?.appendChild(child);
+                    } else {
+                        const parent = this.nodes.get(parentId);
+                        parent?.appendChild(child);
+                    }
+                    break;
+                }
+
+                case OPS.DOM_ATTR_CLASS: {
+                    const nodeId = view.getUint16(pc, false); pc += 2;
+                    const strId = view.getUint16(pc, false); pc += 2;
+                    const el = this.nodes.get(nodeId) as HTMLElement;
+                    if (el) el.className = this.strings[strId];
+                    break;
+                }
+
+                // --- REACTIVITY ---
+                case OPS.DOM_BIND_TEXT: {
+                    const nodeId = view.getUint16(pc, false); pc += 2;
+                    const sigId = view.getUint16(pc, false); pc += 2;
+                    const tmplId = view.getUint16(pc, false); pc += 2;
+
+                    const el = this.nodes.get(nodeId);
+                    const signal = this.signals.get(sigId);
+                    const template = this.strings[tmplId];
+
+                    if (el && signal) {
+                        // V1: textContent replacement (simple but triggers layout)
+                        // V2 TODO: Use Text node with nodeValue for surgical updates
+                        // e.g., const textNode = document.createTextNode('');
+                        //       el.appendChild(textNode);
+                        //       createEffect(() => { textNode.nodeValue = ... });
+                        createEffect(() => {
+                            el.textContent = template.replace('{}', String(signal.value));
+                        });
+                    }
+                    break;
+                }
+
+                case OPS.DOM_ON_CLICK: {
+                    const nodeId = view.getUint16(pc, false); pc += 2;
+                    const jumpAddr = view.getUint32(pc, false); pc += 4;
+
+                    const el = this.nodes.get(nodeId);
+                    if (el) {
+                        // Re-entrancy: click spawns new execution frame
+                        el.addEventListener('click', () => {
+                            this.execute(jumpAddr);
+                        });
+                    }
+                    break;
+                }
+
+                // --- FLOW ---
+                case OPS.JMP: {
+                    const addr = view.getUint32(pc, false);
+                    pc = addr;
+                    break;
+                }
+
+                case OPS.JMP_TRUE: {
+                    const sigId = view.getUint16(pc, false); pc += 2;
+                    const addr = view.getUint32(pc, false); pc += 4;
+                    const signal = this.signals.get(sigId);
+                    if (signal?.value) {
+                        pc = addr;
+                    }
+                    break;
+                }
+
+                case OPS.JMP_FALSE: {
+                    const sigId = view.getUint16(pc, false); pc += 2;
+                    const addr = view.getUint32(pc, false); pc += 4;
+                    const signal = this.signals.get(sigId);
+                    if (!signal?.value) {
+                        pc = addr;
+                    }
+                    break;
+                }
+
+                // --- NETWORK ---
+                case OPS.RPC_CALL: {
+                    const funcStrId = view.getUint16(pc, false); pc += 2;
+                    const resultSigId = view.getUint16(pc, false); pc += 2;
+
+                    const funcName = this.strings[funcStrId];
+                    const resultSignal = this.signals.get(resultSigId);
+
+                    // Async RPC call
+                    fetch(`/api/rpc/${funcName}`, { method: 'POST' })
+                        .then(r => r.json())
+                        .then(data => {
+                            if (resultSignal) resultSignal.value = data;
+                        });
+                    break;
+                }
+
+                case OPS.HALT:
+                    running = false;
+                    break;
+
+                default:
+                    console.error(`Unknown OpCode: 0x${op.toString(16)} at ${pc - 1}`);
+                    running = false;
+            }
+        }
+    }
+}
+
+// Auto-initialize if script is loaded directly
+if (typeof window !== 'undefined') {
+    (window as any).FlowVM = FlowVM;
+}
