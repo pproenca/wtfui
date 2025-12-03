@@ -1,11 +1,15 @@
 # tests/test_server_app.py
 """Tests for FastAPI server integration."""
 
+import contextlib
 import re
+from typing import Any
 
+import pytest
 from fastapi.testclient import TestClient
 
 from flow.component import component
+from flow.rpc import RpcRegistry, rpc
 from flow.server.app import create_app
 from flow.signal import Signal
 from flow.ui import Button, Div, Input, Text
@@ -87,24 +91,16 @@ def test_websocket_handles_click_event():
 
     # Extract element IDs from the HTML
     ids = re.findall(r'id="flow-(\d+)"', response.text)
+    assert ids, "Expected to find flow element IDs in HTML"
 
     with client.websocket_connect("/ws") as websocket:
-        if ids:
-            # Send a click event for a real element
-            websocket.send_json(
-                {
-                    "type": "click",
-                    "target_id": f"flow-{ids[0]}",
-                }
-            )
-        else:
-            # Send a click event with non-existent ID
-            websocket.send_json(
-                {
-                    "type": "click",
-                    "target_id": "flow-999999",
-                }
-            )
+        # Send a click event for a real element
+        websocket.send_json(
+            {
+                "type": "click",
+                "target_id": f"flow-{ids[0]}",
+            }
+        )
 
         # The server should handle this without crashing
         # (It won't send a response if there's no handler)
@@ -259,6 +255,31 @@ def test_websocket_handles_missing_event_type():
         # Should not crash
 
 
+def test_websocket_handles_malformed_json():
+    """WebSocket handles malformed JSON gracefully without crashing."""
+    app = create_app(SimpleApp)
+    client = TestClient(app)
+
+    with client.websocket_connect("/ws") as websocket:
+        # Send malformed JSON (this will raise an exception in the WebSocket handler)
+        # The TestClient doesn't provide a way to send raw text, so we'll test
+        # that the connection can recover after a bad message
+        with contextlib.suppress(Exception):
+            # Connection might close due to malformed JSON
+            websocket.send_text("{invalid json}")
+
+        # Try to establish a new connection to verify server didn't crash
+        with client.websocket_connect("/ws") as websocket2:
+            # Send a valid message on the new connection
+            websocket2.send_json(
+                {
+                    "type": "click",
+                    "target_id": "flow-12345",
+                }
+            )
+            # Should work fine
+
+
 def test_websocket_with_interactive_elements():
     """WebSocket works with interactive elements and handlers."""
 
@@ -285,18 +306,21 @@ def test_websocket_with_interactive_elements():
 
     # Find button ID
     ids = re.findall(r'id="flow-(\d+)"', response.text)
+    assert ids, "Expected to find flow element IDs in HTML"
 
     with client.websocket_connect("/ws") as websocket:
-        if ids:
-            # Try to click the button
-            websocket.send_json(
-                {
-                    "type": "click",
-                    "target_id": f"flow-{ids[-1]}",  # Last ID is likely the button
-                }
-            )
-            # Server should handle the event without crashing
-            # We can't easily test for response without blocking indefinitely
+        # Click the button
+        websocket.send_json(
+            {
+                "type": "click",
+                "target_id": f"flow-{ids[-1]}",  # Last ID is likely the button
+            }
+        )
+
+        # Receive the re-render update
+        update = websocket.receive_json()
+        assert update["op"] == "update_root"
+        assert "html" in update
 
 
 def test_websocket_with_signal_binding():
@@ -320,27 +344,27 @@ def test_websocket_with_signal_binding():
 
     # Find input ID
     ids = re.findall(r'id="flow-(\d+)"', response.text)
+    assert ids, "Expected to find flow element IDs in HTML"
 
     with client.websocket_connect("/ws") as websocket:
-        if ids:
-            # Send input event
-            websocket.send_json(
-                {
-                    "type": "input",
-                    "target_id": f"flow-{ids[-1]}",  # Last ID is likely the input
-                    "value": "Hello World",
-                }
-            )
+        # Send input event
+        websocket.send_json(
+            {
+                "type": "input",
+                "target_id": f"flow-{ids[-1]}",  # Last ID is likely the input
+                "value": "Hello World",
+            }
+        )
 
-            # Input events don't trigger re-render, just update the signal
-            # So we can send another one
-            websocket.send_json(
-                {
-                    "type": "input",
-                    "target_id": f"flow-{ids[-1]}",
-                    "value": "Updated",
-                }
-            )
+        # Input events don't trigger re-render, just update the signal
+        # So we can send another one
+        websocket.send_json(
+            {
+                "type": "input",
+                "target_id": f"flow-{ids[-1]}",
+                "value": "Updated",
+            }
+        )
 
 
 def test_websocket_with_async_handler():
@@ -367,17 +391,21 @@ def test_websocket_with_async_handler():
 
     # Find button ID
     ids = re.findall(r'id="flow-(\d+)"', response.text)
+    assert ids, "Expected to find flow element IDs in HTML"
 
     with client.websocket_connect("/ws") as websocket:
-        if ids:
-            # Click the async button
-            websocket.send_json(
-                {
-                    "type": "click",
-                    "target_id": f"flow-{ids[-1]}",
-                }
-            )
-            # Server should handle async event without crashing
+        # Click the async button
+        websocket.send_json(
+            {
+                "type": "click",
+                "target_id": f"flow-{ids[-1]}",
+            }
+        )
+
+        # Receive the re-render update
+        update = websocket.receive_json()
+        assert update["op"] == "update_root"
+        assert "html" in update
 
 
 def test_websocket_multiple_connections():
@@ -419,15 +447,243 @@ def test_re_render_clears_registry():
     response = client.get("/")
     assert response.status_code == 200
     initial_ids = set(re.findall(r'id="flow-(\d+)"', response.text))
+    assert initial_ids, "Expected to find flow element IDs in HTML"
 
     with client.websocket_connect("/ws") as websocket:
-        if initial_ids:
-            # Click button multiple times to test registry clearing on re-render
-            for _ in range(3):
-                websocket.send_json(
-                    {
-                        "type": "click",
-                        "target_id": f"flow-{max(initial_ids)}",
-                    }
-                )
-                # Each click should be processed without crashing
+        # Click button multiple times to test registry clearing on re-render
+        for _ in range(3):
+            websocket.send_json(
+                {
+                    "type": "click",
+                    "target_id": f"flow-{max(initial_ids)}",
+                }
+            )
+            # Each click should be processed without crashing
+
+
+def test_websocket_change_event_with_handler():
+    """WebSocket processes change events and triggers re-render."""
+
+    @component
+    async def ChangeApp():
+        selected = Signal("none")
+
+        def on_change(value: str):
+            selected.value = value
+
+        with Div(cls="container") as root:
+            Text(f"Selected: {selected.value}")
+            # Create a select-like element with on_change
+            Div(on_change=on_change)
+        return root
+
+    app = create_app(ChangeApp)
+    client = TestClient(app)
+
+    response = client.get("/")
+    assert response.status_code == 200
+
+    ids = re.findall(r'id="flow-(\d+)"', response.text)
+    assert ids, "Expected to find flow element IDs in HTML"
+
+    with client.websocket_connect("/ws") as websocket:
+        # Send change event
+        websocket.send_json(
+            {
+                "type": "change",
+                "target_id": f"flow-{ids[-1]}",
+                "value": "option1",
+            }
+        )
+
+        # Receive the re-render update
+        update = websocket.receive_json()
+        assert update["op"] == "update_root"
+        assert "html" in update
+
+
+def test_websocket_change_event_with_async_handler():
+    """WebSocket processes change events with async handlers."""
+
+    @component
+    async def AsyncChangeApp():
+        selected = Signal("none")
+
+        async def on_change(value: str):
+            selected.value = value
+
+        with Div(cls="container") as root:
+            Text(f"Selected: {selected.value}")
+            Div(on_change=on_change)
+        return root
+
+    app = create_app(AsyncChangeApp)
+    client = TestClient(app)
+
+    response = client.get("/")
+    assert response.status_code == 200
+
+    ids = re.findall(r'id="flow-(\d+)"', response.text)
+    assert ids, "Expected to find flow element IDs in HTML"
+
+    with client.websocket_connect("/ws") as websocket:
+        # Send change event
+        websocket.send_json(
+            {
+                "type": "change",
+                "target_id": f"flow-{ids[-1]}",
+                "value": "option2",
+            }
+        )
+
+        # Receive the re-render update
+        update = websocket.receive_json()
+        assert update["op"] == "update_root"
+        assert "html" in update
+
+
+def test_websocket_input_updates_signal():
+    """WebSocket input events update bound signals."""
+
+    @component
+    async def InputBindingApp():
+        text = Signal("")
+
+        with Div(cls="container") as root:
+            Text(f"Value: {text.value}")
+            Input(bind=text, placeholder="Type here")
+        return root
+
+    app = create_app(InputBindingApp)
+    client = TestClient(app)
+
+    response = client.get("/")
+    assert response.status_code == 200
+
+    ids = re.findall(r'id="flow-(\d+)"', response.text)
+    assert ids, "Expected to find flow element IDs in HTML"
+
+    with client.websocket_connect("/ws") as websocket:
+        # Send input event to update the signal
+        websocket.send_json(
+            {
+                "type": "input",
+                "target_id": f"flow-{ids[-1]}",  # Input element
+                "value": "test value",
+            }
+        )
+        # Input events don't trigger re-render, just update the signal
+        # The signal is updated but no response is sent
+
+
+# RPC Endpoint Tests
+
+
+@pytest.fixture(autouse=True)
+def clear_rpc_registry():
+    """Clear RPC registry before and after each test."""
+    RpcRegistry.clear()
+    yield
+    RpcRegistry.clear()
+
+
+def test_rpc_endpoint_successful_call():
+    """RPC endpoint successfully calls registered functions."""
+
+    @rpc
+    async def test_function(name: str, age: int) -> dict[str, Any]:
+        """Test RPC function."""
+        return {"greeting": f"Hello {name}, you are {age} years old"}
+
+    app = create_app(SimpleApp)
+    client = TestClient(app)
+
+    # Call the RPC endpoint
+    response = client.post(
+        "/api/rpc/test_function",
+        json={"name": "Alice", "age": 30},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data == {"greeting": "Hello Alice, you are 30 years old"}
+
+
+def test_rpc_endpoint_unknown_function():
+    """RPC endpoint returns 404 for unknown functions."""
+    app = create_app(SimpleApp)
+    client = TestClient(app)
+
+    # Call non-existent function
+    response = client.post(
+        "/api/rpc/nonexistent_function",
+        json={},
+    )
+
+    assert response.status_code == 404
+    assert "not found" in response.json()["detail"].lower()
+
+
+def test_rpc_endpoint_invalid_arguments():
+    """RPC endpoint handles invalid arguments gracefully."""
+
+    @rpc
+    async def strict_function(required_arg: str) -> dict[str, str]:
+        """Function requiring specific arguments."""
+        return {"result": required_arg}
+
+    app = create_app(SimpleApp)
+    client = TestClient(app, raise_server_exceptions=False)
+
+    # Call with missing required argument
+    response = client.post(
+        "/api/rpc/strict_function",
+        json={},
+    )
+
+    # Should return 500 (internal server error) due to missing argument
+    assert response.status_code == 500
+
+
+def test_rpc_endpoint_with_complex_return():
+    """RPC endpoint handles complex return types using FlowJSONEncoder."""
+
+    @rpc
+    async def complex_function() -> dict[str, Any]:
+        """Function returning complex data."""
+        return {
+            "numbers": [1, 2, 3],
+            "nested": {"key": "value"},
+            "boolean": True,
+            "null": None,
+        }
+
+    app = create_app(SimpleApp)
+    client = TestClient(app)
+
+    response = client.post("/api/rpc/complex_function", json={})
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["numbers"] == [1, 2, 3]
+    assert data["nested"]["key"] == "value"
+    assert data["boolean"] is True
+    assert data["null"] is None
+
+
+def test_rpc_endpoint_empty_body():
+    """RPC endpoint handles requests with no JSON body."""
+
+    @rpc
+    async def no_args_function() -> dict[str, str]:
+        """Function that takes no arguments."""
+        return {"status": "success"}
+
+    app = create_app(SimpleApp)
+    client = TestClient(app)
+
+    # Call without JSON body
+    response = client.post("/api/rpc/no_args_function")
+
+    assert response.status_code == 200
+    assert response.json() == {"status": "success"}
