@@ -9,7 +9,7 @@ import threading
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, Request, WebSocket
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, Response
 
 from flow.renderer import HTMLRenderer, Renderer
 from flow.rpc import RpcRegistry
@@ -287,6 +287,36 @@ def create_app(
         return JSONResponse(
             content=json.loads(json_content),  # FastAPI requires dict, not string
             media_type="application/json",
+        )
+
+    @app.get("/app.fbc")
+    async def get_flowbyte() -> Response:
+        """Serve compiled FlowByte binary.
+
+        On-demand compilation from the root component's source.
+        In production, this would be pre-compiled.
+        """
+        from flow.compiler.flowbyte import compile_to_flowbyte
+
+        # For now, compile a simple counter as demo
+        # TODO: Extract source from root_component
+        demo_source = """
+count = Signal(0)
+def increment():
+    count.value += 1
+
+with Div():
+    Text(f"Count: {count.value}")
+    Button("Up", on_click=increment)
+"""
+        binary = compile_to_flowbyte(demo_source)
+
+        return Response(
+            content=binary,
+            media_type="application/octet-stream",
+            headers={
+                "Cache-Control": "no-cache, must-revalidate",
+            },
         )
 
     return app
