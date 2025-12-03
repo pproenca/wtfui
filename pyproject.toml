@@ -161,6 +161,7 @@ module = "tests.*"
 # Slightly relaxed for tests
 disallow_untyped_defs = false
 disallow_incomplete_defs = false
+disable_error_code = ["comparison-overlap"]
 
 # ============================================================================
 # Bandit Configuration (Security)
