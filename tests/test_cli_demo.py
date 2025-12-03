@@ -5,14 +5,14 @@ from __future__ import annotations
 
 def test_demo_module_exists():
     """Demo module can be imported."""
-    from flow.cli import demo
+    from examples.console import app as demo
 
     assert demo is not None
 
 
 def test_demo_has_run_function():
     """Demo module has main entry point."""
-    from flow.cli.demo import run_demo
+    from examples.console.app import run_demo
 
     assert callable(run_demo)
 
@@ -27,7 +27,7 @@ def test_demo_command_registered():
 
 def test_app_state_creation():
     """AppState holds application state."""
-    from flow.cli.demo import AppState
+    from examples.console.app import AppState
 
     state = AppState(width=80, height=24)
     assert state.width == 80
@@ -39,7 +39,7 @@ def test_app_state_creation():
 
 def test_app_state_focus_cycling():
     """AppState can cycle through focus areas."""
-    from flow.cli.demo import AppState, FocusArea
+    from examples.console.app import AppState, FocusArea
 
     state = AppState(width=80, height=24)
     assert state.focus == FocusArea.PROCESSES
@@ -56,7 +56,7 @@ def test_app_state_focus_cycling():
 
 def test_app_state_command_editing():
     """AppState handles command input."""
-    from flow.cli.demo import AppState
+    from examples.console.app import AppState
 
     state = AppState(width=80, height=24)
 
@@ -75,7 +75,7 @@ def test_app_state_command_editing():
 
 def test_collect_system_stats():
     """collect_stats returns SystemStats with real data."""
-    from flow.cli.demo import SystemStats, collect_stats
+    from examples.console.app import SystemStats, collect_stats
 
     stats = collect_stats()
 
@@ -88,7 +88,7 @@ def test_collect_system_stats():
 
 def test_collect_processes():
     """collect_processes returns list of ProcessInfo."""
-    from flow.cli.demo import ProcessInfo, collect_processes
+    from examples.console.app import ProcessInfo, collect_processes
 
     procs = collect_processes(limit=10)
 
@@ -102,7 +102,7 @@ def test_collect_processes():
 
 def test_collect_processes_sorted_by_cpu():
     """collect_processes sorts by CPU by default."""
-    from flow.cli.demo import collect_processes
+    from examples.console.app import collect_processes
 
     procs = collect_processes(limit=20, sort_by="cpu")
 
@@ -113,7 +113,7 @@ def test_collect_processes_sorted_by_cpu():
 
 def test_build_layout_tree():
     """build_layout_tree creates LayoutNode hierarchy."""
-    from flow.cli.demo import AppState, build_layout_tree
+    from examples.console.app import AppState, build_layout_tree
     from flow.layout.node import LayoutNode
 
     state = AppState(width=80, height=24)
@@ -125,7 +125,7 @@ def test_build_layout_tree():
 
 def test_layout_tree_has_correct_structure():
     """Layout tree matches dashboard structure."""
-    from flow.cli.demo import AppState, build_layout_tree
+    from examples.console.app import AppState, build_layout_tree
     from flow.layout.style import FlexDirection
 
     state = AppState(width=80, height=24)
@@ -142,7 +142,7 @@ def test_layout_tree_has_correct_structure():
 
 def test_layout_computes_positions():
     """Layout computation assigns positions to nodes."""
-    from flow.cli.demo import AppState, build_layout_tree
+    from examples.console.app import AppState, build_layout_tree
     from flow.layout.compute import compute_layout
     from flow.layout.types import Size
 
@@ -162,7 +162,7 @@ def test_layout_computes_positions():
 
 def test_render_layout_to_buffer():
     """render_layout writes layout tree to ConsoleRenderer buffer."""
-    from flow.cli.demo import AppState, build_layout_tree, render_layout
+    from examples.console.app import AppState, build_layout_tree, render_layout
     from flow.layout.compute import compute_layout
     from flow.layout.types import Size
     from flow.renderer.console import ConsoleRenderer
@@ -187,7 +187,7 @@ def test_render_layout_to_buffer():
 
 def test_parse_command_quit():
     """parse_command handles quit command."""
-    from flow.cli.demo import AppState, CommandResult, parse_command
+    from examples.console.app import AppState, CommandResult, parse_command
 
     state = AppState(width=80, height=24)
     result = parse_command("quit", state)
@@ -199,7 +199,7 @@ def test_parse_command_quit():
 
 def test_parse_command_filter():
     """parse_command handles filter command."""
-    from flow.cli.demo import AppState, parse_command
+    from examples.console.app import AppState, parse_command
 
     state = AppState(width=80, height=24)
     result = parse_command("filter python", state)
@@ -210,7 +210,7 @@ def test_parse_command_filter():
 
 def test_parse_command_kill():
     """parse_command handles kill command."""
-    from flow.cli.demo import AppState, parse_command
+    from examples.console.app import AppState, parse_command
 
     state = AppState(width=80, height=24)
     result = parse_command("kill 1234", state)
@@ -221,7 +221,7 @@ def test_parse_command_kill():
 
 def test_parse_command_top():
     """parse_command handles top (sort by CPU) command."""
-    from flow.cli.demo import AppState, parse_command
+    from examples.console.app import AppState, parse_command
 
     state = AppState(width=80, height=24)
     state.sort_by = "mem"
@@ -233,7 +233,7 @@ def test_parse_command_top():
 
 def test_parse_command_unknown():
     """parse_command handles unknown commands gracefully."""
-    from flow.cli.demo import AppState, parse_command
+    from examples.console.app import AppState, parse_command
 
     state = AppState(width=80, height=24)
     result = parse_command("unknown command", state)
@@ -244,7 +244,7 @@ def test_parse_command_unknown():
 
 def test_handle_key_quit():
     """handle_key processes quit keys."""
-    from flow.cli.demo import AppState, handle_key
+    from examples.console.app import AppState, handle_key
     from flow.renderer.console.input import KeyEvent
 
     state = AppState(width=80, height=24)
@@ -257,7 +257,7 @@ def test_handle_key_quit():
 
 def test_handle_key_tab_cycles_focus():
     """handle_key Tab cycles focus areas."""
-    from flow.cli.demo import AppState, FocusArea, handle_key
+    from examples.console.app import AppState, FocusArea, handle_key
     from flow.renderer.console.input import KeyEvent
 
     state = AppState(width=80, height=24)
@@ -271,7 +271,7 @@ def test_handle_key_tab_cycles_focus():
 
 def test_handle_key_arrows_scroll():
     """handle_key arrows scroll process list."""
-    from flow.cli.demo import AppState, FocusArea, ProcessInfo, handle_key
+    from examples.console.app import AppState, FocusArea, ProcessInfo, handle_key
     from flow.renderer.console.input import KeyEvent
 
     state = AppState(width=80, height=24)
@@ -289,7 +289,7 @@ def test_handle_key_arrows_scroll():
 
 def test_handle_key_typing_in_command():
     """handle_key types characters when command focused."""
-    from flow.cli.demo import AppState, FocusArea, handle_key
+    from examples.console.app import AppState, FocusArea, handle_key
     from flow.renderer.console.input import KeyEvent
 
     state = AppState(width=80, height=24)
@@ -304,7 +304,7 @@ def test_handle_key_typing_in_command():
 
 def test_handle_key_enter_executes_command():
     """handle_key Enter executes command."""
-    from flow.cli.demo import AppState, FocusArea, handle_key
+    from examples.console.app import AppState, FocusArea, handle_key
     from flow.renderer.console.input import KeyEvent
 
     state = AppState(width=80, height=24)
@@ -320,7 +320,7 @@ def test_handle_key_enter_executes_command():
 
 def test_update_stats_modifies_state():
     """update_stats refreshes system statistics."""
-    from flow.cli.demo import AppState, update_stats
+    from examples.console.app import AppState, update_stats
 
     state = AppState(width=80, height=24)
     assert state.stats.cpu_percent == 0.0
@@ -339,7 +339,7 @@ def test_update_stats_modifies_state():
 
 def test_demo_full_render_cycle():
     """Full render cycle produces valid output."""
-    from flow.cli.demo import AppState, build_layout_tree, render_layout, update_stats
+    from examples.console.app import AppState, build_layout_tree, render_layout, update_stats
     from flow.layout.compute import compute_layout
     from flow.layout.types import Size
     from flow.renderer.console import ConsoleRenderer
@@ -369,7 +369,7 @@ def test_demo_full_render_cycle():
 
 def test_demo_keyboard_workflow():
     """Keyboard input workflow functions correctly."""
-    from flow.cli.demo import AppState, FocusArea, handle_key
+    from examples.console.app import AppState, FocusArea, handle_key
     from flow.renderer.console.input import KeyEvent
 
     state = AppState(width=80, height=24)
@@ -393,7 +393,7 @@ def test_demo_keyboard_workflow():
 
 def test_demo_command_affects_render():
     """Commands affect what gets rendered."""
-    from flow.cli.demo import (
+    from examples.console.app import (
         AppState,
         build_layout_tree,
         parse_command,
