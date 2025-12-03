@@ -456,6 +456,103 @@ def _render_footer(
     renderer.render_text_at(x, y, prompt, cls="text-green-300")
 
 
+# ============================================================
+# STEP 6: Command Parser
+# ============================================================
+
+
+@dataclass
+class CommandResult:
+    """Result of parsing and executing a command."""
+
+    action: str
+    message: str = ""
+    target_pid: int | None = None
+
+
+def parse_command(command: str, state: AppState) -> CommandResult:
+    """Parse and execute a command string.
+
+    Supported commands:
+    - quit: Exit the application
+    - refresh: Force refresh stats
+    - top: Sort processes by CPU usage
+    - filter <text>: Filter processes by name
+    - kill <pid>: Kill a process
+
+    Args:
+        command: The command string to parse.
+        state: Application state to modify.
+
+    Returns:
+        CommandResult with action taken and any messages.
+    """
+    parts = command.strip().lower().split()
+
+    if not parts:
+        return CommandResult(action="empty")
+
+    cmd = parts[0]
+    args = parts[1:]
+
+    if cmd in ("quit", "exit", "q"):
+        state.running = False
+        return CommandResult(action="quit", message="Exiting...")
+
+    if cmd == "refresh":
+        return CommandResult(action="refresh", message="Refreshing...")
+
+    if cmd == "top":
+        state.sort_by = "cpu"
+        return CommandResult(action="sort", message="Sorted by CPU")
+
+    if cmd == "sort" and args:
+        sort_key = args[0]
+        if sort_key in ("cpu", "mem", "name"):
+            state.sort_by = sort_key
+            return CommandResult(action="sort", message=f"Sorted by {sort_key}")
+        return CommandResult(action="error", message=f"Unknown sort key: {sort_key}")
+
+    if cmd == "filter":
+        filter_text = " ".join(args) if args else ""
+        state.filter_text = filter_text
+        msg = f"Filtering: {filter_text}" if filter_text else "Filter cleared"
+        return CommandResult(action="filter", message=msg)
+
+    if cmd == "kill" and args:
+        try:
+            pid = int(args[0])
+            return CommandResult(action="kill", message=f"Kill PID {pid}?", target_pid=pid)
+        except ValueError:
+            return CommandResult(action="error", message=f"Invalid PID: {args[0]}")
+
+    return CommandResult(action="error", message=f"Unknown command: {cmd}")
+
+
+def execute_kill(pid: int) -> str:
+    """Execute kill command on a process.
+
+    Args:
+        pid: Process ID to kill.
+
+    Returns:
+        Result message.
+    """
+    if not HAS_PSUTIL or psutil is None:
+        return "psutil not available"
+
+    try:
+        proc = psutil.Process(pid)
+        proc.terminate()
+        return f"Terminated process {pid}"
+    except psutil.NoSuchProcess:
+        return f"Process {pid} not found"
+    except psutil.AccessDenied:
+        return f"Access denied for PID {pid}"
+    except Exception as e:
+        return f"Error: {e}"
+
+
 def run_demo() -> None:
     """Main entry point for the console demo.
 

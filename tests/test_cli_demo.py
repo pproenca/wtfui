@@ -183,3 +183,60 @@ def test_render_layout_to_buffer():
     # Should contain dashboard elements
     assert "System Monitor" in output
     assert "CPU" in output
+
+
+def test_parse_command_quit():
+    """parse_command handles quit command."""
+    from flow.cli.demo import AppState, CommandResult, parse_command
+
+    state = AppState(width=80, height=24)
+    result = parse_command("quit", state)
+
+    assert result.action == "quit"
+    assert state.running is False
+    assert isinstance(result, CommandResult)
+
+
+def test_parse_command_filter():
+    """parse_command handles filter command."""
+    from flow.cli.demo import AppState, parse_command
+
+    state = AppState(width=80, height=24)
+    result = parse_command("filter python", state)
+
+    assert result.action == "filter"
+    assert state.filter_text == "python"
+
+
+def test_parse_command_kill():
+    """parse_command handles kill command."""
+    from flow.cli.demo import AppState, parse_command
+
+    state = AppState(width=80, height=24)
+    result = parse_command("kill 1234", state)
+
+    assert result.action == "kill"
+    assert result.target_pid == 1234
+
+
+def test_parse_command_top():
+    """parse_command handles top (sort by CPU) command."""
+    from flow.cli.demo import AppState, parse_command
+
+    state = AppState(width=80, height=24)
+    state.sort_by = "mem"
+    result = parse_command("top", state)
+
+    assert result.action == "sort"
+    assert state.sort_by == "cpu"
+
+
+def test_parse_command_unknown():
+    """parse_command handles unknown commands gracefully."""
+    from flow.cli.demo import AppState, parse_command
+
+    state = AppState(width=80, height=24)
+    result = parse_command("unknown command", state)
+
+    assert result.action == "error"
+    assert "Unknown" in result.message
