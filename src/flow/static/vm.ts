@@ -4,39 +4,104 @@
  *
  * A lightweight (~3KB) VM that executes FlowByte bytecode directly
  * from an ArrayBuffer, achieving zero parse time.
+ *
+ * REVISED: Pure Stack Machine Architecture
+ * - All arithmetic/comparison operations pop operands from stack, push result
+ * - No register allocation needed
+ * - Intrinsic functions use stack for arguments
  */
 
 import { createSignal, createEffect, Signal } from './reactivity.js';
 
 // OpCode Mapping (Must match Python opcodes.py)
 const OPS = {
+    // --- SIGNALS & STATE (0x00 - 0x1F) ---
     INIT_SIG_NUM: 0x01,
     INIT_SIG_STR: 0x02,
     SET_SIG_NUM:  0x03,
+
+    // --- ARITHMETIC (0x20 - 0x2F) ---
+    // Legacy register-based (kept for compatibility)
     ADD:          0x20,
     SUB:          0x21,
+    MUL:          0x22,
+    DIV:          0x23,
+    MOD:          0x24,
     INC_CONST:    0x25,
+    // Stack-based arithmetic
+    ADD_STACK:    0x26,
+    SUB_STACK:    0x27,
+
+    // --- COMPARISON (0x30 - 0x3F) ---
+    EQ:           0x30,
+    NE:           0x31,
+    LT:           0x32,
+    LE:           0x33,
+    GT:           0x34,
+    GE:           0x35,
+
+    // --- CONTROL FLOW (0x40 - 0x5F) ---
     JMP_TRUE:     0x40,
     JMP_FALSE:    0x41,
     JMP:          0x42,
-    DOM_CREATE:   0x60,
-    DOM_APPEND:   0x61,
-    DOM_TEXT:     0x62,
-    DOM_BIND_TEXT: 0x63,
-    DOM_ON_CLICK: 0x64,
+
+    // --- DOM MANIPULATION (0x60 - 0x8F) ---
+    DOM_CREATE:     0x60,
+    DOM_APPEND:     0x61,
+    DOM_TEXT:       0x62,
+    DOM_BIND_TEXT:  0x63,
+    DOM_ON_CLICK:   0x64,
     DOM_ATTR_CLASS: 0x65,
+    DOM_STYLE_STATIC: 0x66,
+    DOM_STYLE_DYN:  0x67,
+    DOM_ATTR:       0x68,
+    DOM_BIND_ATTR:  0x69,
+
+    // --- NETWORK (0x90 - 0x9F) ---
     RPC_CALL:     0x90,
+
+    // --- STACK OPERATIONS (0xA0 - 0xBF) ---
+    PUSH_NUM:     0xA0,
+    PUSH_STR:     0xA1,
+    LOAD_SIG:     0xA2,
+    STORE_SIG:    0xA3,
+    POP:          0xA4,
+    DUP:          0xA5,
+
+    // --- INTRINSIC CALLS (0xC0 - 0xDF) ---
+    CALL_INTRINSIC: 0xC0,
+
+    // --- CONTROL ---
     HALT:         0xFF
 } as const;
 
+// Intrinsic function IDs (must match Python intrinsics.py)
+const INTRINSICS: Record<number, (...args: any[]) => any> = {
+    0x01: (...args) => console.log(...args),           // PRINT
+    0x02: (arg) => arg?.length ?? 0,                   // LEN
+    0x03: (arg) => String(arg),                        // STR
+    0x04: (arg) => Math.floor(Number(arg)),            // INT
+    0x05: (n) => Array.from({length: n}, (_, i) => i)  // RANGE
+};
+
 // Magic header "FLOW" + version
 const MAGIC = [0x46, 0x4C, 0x4F, 0x57]; // "FLOW"
+
+/**
+ * Convert kebab-case CSS property to camelCase for el.style access.
+ */
+function kebabToCamel(str: string): string {
+    return str.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+}
 
 export class FlowVM {
     // Memory Banks
     signals = new Map<number, Signal<any>>();
     nodes = new Map<number, HTMLElement | Text>();
     strings: string[] = [];
+
+    // === PURE STACK MACHINE ===
+    stack: any[] = [];
 
     // Program Code
     view: DataView | null = null;
@@ -94,7 +159,7 @@ export class FlowVM {
     }
 
     /**
-     * The Main CPU Loop.
+     * The Main CPU Loop - Pure Stack Machine.
      * @param pc Program Counter (Byte Offset)
      */
     execute(pc: number): void {
@@ -106,7 +171,148 @@ export class FlowVM {
             const op = view.getUint8(pc++);
 
             switch (op) {
-                // --- STATE ---
+                // === STACK OPERATIONS ===
+
+                case OPS.PUSH_NUM: {
+                    const val = view.getFloat64(pc, false); pc += 8;
+                    this.stack.push(val);
+                    break;
+                }
+
+                case OPS.PUSH_STR: {
+                    const strId = view.getUint16(pc, false); pc += 2;
+                    this.stack.push(this.strings[strId]);
+                    break;
+                }
+
+                case OPS.LOAD_SIG: {
+                    const sigId = view.getUint16(pc, false); pc += 2;
+                    const signal = this.signals.get(sigId);
+                    this.stack.push(signal ? signal.value : undefined);
+                    break;
+                }
+
+                case OPS.STORE_SIG: {
+                    const sigId = view.getUint16(pc, false); pc += 2;
+                    const val = this.stack.pop();
+                    const signal = this.signals.get(sigId);
+                    if (signal) signal.value = val;
+                    break;
+                }
+
+                case OPS.POP: {
+                    const count = view.getUint8(pc++);
+                    this.stack.splice(-count);
+                    break;
+                }
+
+                case OPS.DUP: {
+                    const top = this.stack[this.stack.length - 1];
+                    this.stack.push(top);
+                    break;
+                }
+
+                // === STACK-BASED ARITHMETIC ===
+
+                case OPS.ADD_STACK: {
+                    const b = this.stack.pop();
+                    const a = this.stack.pop();
+                    this.stack.push(a + b);
+                    break;
+                }
+
+                case OPS.SUB_STACK: {
+                    const b = this.stack.pop();
+                    const a = this.stack.pop();
+                    this.stack.push(a - b);
+                    break;
+                }
+
+                case OPS.MUL: {
+                    const b = this.stack.pop();
+                    const a = this.stack.pop();
+                    this.stack.push(a * b);
+                    break;
+                }
+
+                case OPS.DIV: {
+                    const b = this.stack.pop();
+                    const a = this.stack.pop();
+                    this.stack.push(a / b);
+                    break;
+                }
+
+                case OPS.MOD: {
+                    const b = this.stack.pop();
+                    const a = this.stack.pop();
+                    this.stack.push(a % b);
+                    break;
+                }
+
+                // === COMPARISON OPERATIONS ===
+
+                case OPS.EQ: {
+                    const b = this.stack.pop();
+                    const a = this.stack.pop();
+                    this.stack.push(a === b);
+                    break;
+                }
+
+                case OPS.NE: {
+                    const b = this.stack.pop();
+                    const a = this.stack.pop();
+                    this.stack.push(a !== b);
+                    break;
+                }
+
+                case OPS.LT: {
+                    const b = this.stack.pop();
+                    const a = this.stack.pop();
+                    this.stack.push(a < b);
+                    break;
+                }
+
+                case OPS.LE: {
+                    const b = this.stack.pop();
+                    const a = this.stack.pop();
+                    this.stack.push(a <= b);
+                    break;
+                }
+
+                case OPS.GT: {
+                    const b = this.stack.pop();
+                    const a = this.stack.pop();
+                    this.stack.push(a > b);
+                    break;
+                }
+
+                case OPS.GE: {
+                    const b = this.stack.pop();
+                    const a = this.stack.pop();
+                    this.stack.push(a >= b);
+                    break;
+                }
+
+                // === INTRINSIC CALLS ===
+
+                case OPS.CALL_INTRINSIC: {
+                    const intrinsicId = view.getUint8(pc++);
+                    const argc = view.getUint8(pc++);
+                    const args = this.stack.splice(-argc);
+
+                    const fn = INTRINSICS[intrinsicId];
+                    if (fn) {
+                        const result = fn(...args);
+                        // Push result if not undefined (print returns undefined)
+                        if (result !== undefined) {
+                            this.stack.push(result);
+                        }
+                    }
+                    break;
+                }
+
+                // === SIGNAL STATE (Legacy + Stack-compatible) ===
+
                 case OPS.INIT_SIG_NUM: {
                     const id = view.getUint16(pc, false); pc += 2;
                     const val = view.getFloat64(pc, false); pc += 8;
@@ -137,7 +343,8 @@ export class FlowVM {
                     break;
                 }
 
-                // --- ARITHMETIC ---
+                // === LEGACY REGISTER-BASED ARITHMETIC (for backwards compatibility) ===
+
                 case OPS.ADD: {
                     const tgtId = view.getUint16(pc, false); pc += 2;
                     const srcA = view.getUint16(pc, false); pc += 2;
@@ -153,7 +360,23 @@ export class FlowVM {
                     break;
                 }
 
-                // --- DOM ---
+                case OPS.SUB: {
+                    const tgtId = view.getUint16(pc, false); pc += 2;
+                    const srcA = view.getUint16(pc, false); pc += 2;
+                    const srcB = view.getUint16(pc, false); pc += 2;
+
+                    const sigA = this.signals.get(srcA);
+                    const sigB = this.signals.get(srcB);
+                    const target = this.signals.get(tgtId);
+
+                    if (target && sigA && sigB) {
+                        target.value = sigA.value - sigB.value;
+                    }
+                    break;
+                }
+
+                // === DOM MANIPULATION ===
+
                 case OPS.DOM_CREATE: {
                     const nodeId = view.getUint16(pc, false); pc += 2;
                     const tagStrId = view.getUint16(pc, false); pc += 2;
@@ -197,7 +420,73 @@ export class FlowVM {
                     break;
                 }
 
-                // --- REACTIVITY ---
+                case OPS.DOM_STYLE_STATIC: {
+                    const nodeId = view.getUint16(pc, false); pc += 2;
+                    const propStrId = view.getUint16(pc, false); pc += 2;
+                    const valStrId = view.getUint16(pc, false); pc += 2;
+
+                    const el = this.nodes.get(nodeId) as HTMLElement;
+                    if (el) {
+                        const prop = kebabToCamel(this.strings[propStrId]);
+                        const val = this.strings[valStrId];
+                        (el.style as any)[prop] = val;
+                    }
+                    break;
+                }
+
+                case OPS.DOM_STYLE_DYN: {
+                    const nodeId = view.getUint16(pc, false); pc += 2;
+                    const propStrId = view.getUint16(pc, false); pc += 2;
+
+                    const el = this.nodes.get(nodeId) as HTMLElement;
+                    const val = this.stack.pop();
+
+                    if (el) {
+                        const prop = this.strings[propStrId];
+                        if (prop === 'cssText') {
+                            // Apply full cssText for dynamic styles
+                            el.style.cssText = String(val);
+                        } else {
+                            // Apply single property
+                            (el.style as any)[kebabToCamel(prop)] = String(val);
+                        }
+                    }
+                    break;
+                }
+
+                case OPS.DOM_ATTR: {
+                    const nodeId = view.getUint16(pc, false); pc += 2;
+                    const attrStrId = view.getUint16(pc, false); pc += 2;
+                    const valStrId = view.getUint16(pc, false); pc += 2;
+
+                    const el = this.nodes.get(nodeId) as HTMLElement;
+                    if (el) {
+                        const attr = this.strings[attrStrId];
+                        const val = this.strings[valStrId];
+                        el.setAttribute(attr, val);
+                    }
+                    break;
+                }
+
+                case OPS.DOM_BIND_ATTR: {
+                    const nodeId = view.getUint16(pc, false); pc += 2;
+                    const attrStrId = view.getUint16(pc, false); pc += 2;
+                    const sigId = view.getUint16(pc, false); pc += 2;
+
+                    const el = this.nodes.get(nodeId) as HTMLElement;
+                    const signal = this.signals.get(sigId);
+                    const attr = this.strings[attrStrId];
+
+                    if (el && signal) {
+                        createEffect(() => {
+                            el.setAttribute(attr, String(signal.value));
+                        });
+                    }
+                    break;
+                }
+
+                // === REACTIVITY ===
+
                 case OPS.DOM_BIND_TEXT: {
                     const nodeId = view.getUint16(pc, false); pc += 2;
                     const sigId = view.getUint16(pc, false); pc += 2;
@@ -208,11 +497,6 @@ export class FlowVM {
                     const template = this.strings[tmplId];
 
                     if (el && signal) {
-                        // V1: textContent replacement (simple but triggers layout)
-                        // V2 TODO: Use Text node with nodeValue for surgical updates
-                        // e.g., const textNode = document.createTextNode('');
-                        //       el.appendChild(textNode);
-                        //       createEffect(() => { textNode.nodeValue = ... });
                         createEffect(() => {
                             el.textContent = template.replace('{}', String(signal.value));
                         });
@@ -234,7 +518,8 @@ export class FlowVM {
                     break;
                 }
 
-                // --- FLOW ---
+                // === CONTROL FLOW ===
+
                 case OPS.JMP: {
                     const addr = view.getUint32(pc, false);
                     pc = addr;
@@ -261,7 +546,8 @@ export class FlowVM {
                     break;
                 }
 
-                // --- NETWORK ---
+                // === NETWORK ===
+
                 case OPS.RPC_CALL: {
                     const funcStrId = view.getUint16(pc, false); pc += 2;
                     const resultSigId = view.getUint16(pc, false); pc += 2;

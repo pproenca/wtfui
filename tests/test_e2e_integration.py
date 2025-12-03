@@ -98,7 +98,9 @@ async def App():
     pass
 """
 
-    client_code = transform_for_client(source)
+    # Expect warnings about removed server imports
+    with pytest.warns(UserWarning, match="Removed server-only import"):
+        client_code = transform_for_client(source)
 
     # Server imports MUST be removed
     assert "import sqlalchemy" not in client_code
