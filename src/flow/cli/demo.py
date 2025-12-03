@@ -24,6 +24,7 @@ from flow.layout.types import Dimension
 
 if TYPE_CHECKING:
     from flow.renderer.console import ConsoleRenderer
+    from flow.renderer.console.input import KeyEvent
 
 # Check for psutil availability
 try:
@@ -551,6 +552,85 @@ def execute_kill(pid: int) -> str:
         return f"Access denied for PID {pid}"
     except Exception as e:
         return f"Error: {e}"
+
+
+# ============================================================
+# STEP 7: Input Handler
+# ============================================================
+
+
+def handle_key(event: KeyEvent, state: AppState) -> None:
+    """Handle a keyboard event and update state.
+
+    Key bindings:
+    - q, Ctrl+C: Quit
+    - Tab: Cycle focus
+    - Up/Down: Scroll (when processes focused)
+    - Enter: Execute command (when command focused)
+    - Backspace: Delete char (when command focused)
+    - Any char: Type (when command focused)
+
+    Args:
+        event: Parsed keyboard event.
+        state: Application state to modify.
+    """
+    # Global keys (work regardless of focus)
+    if event.key == "q" or (event.key == "c" and event.ctrl):
+        state.running = False
+        return
+
+    if event.key == "tab":
+        state.cycle_focus()
+        return
+
+    # Focus-specific handling
+    if state.focus == FocusArea.PROCESSES:
+        _handle_process_list_key(event, state)
+    elif state.focus == FocusArea.COMMAND:
+        _handle_command_input_key(event, state)
+    elif state.focus == FocusArea.SIDEBAR:
+        _handle_sidebar_key(event, state)
+
+
+def _handle_process_list_key(event: KeyEvent, state: AppState) -> None:
+    """Handle keys when process list is focused."""
+    if event.key == "up":
+        state.scroll_up()
+    elif event.key == "down":
+        state.scroll_down(len(state.processes))
+    elif event.key == "home":
+        state.scroll_offset = 0
+    elif event.key == "end":
+        visible = state.height - 4
+        state.scroll_offset = max(0, len(state.processes) - visible)
+
+
+def _handle_command_input_key(event: KeyEvent, state: AppState) -> None:
+    """Handle keys when command input is focused."""
+    if event.key == "enter":
+        if state.command_input:
+            result = parse_command(state.command_input, state)
+            state.status_message = result.message
+
+            # Handle kill confirmation
+            if result.action == "kill" and result.target_pid:
+                # Execute immediately (in a real app, would show confirmation)
+                msg = execute_kill(result.target_pid)
+                state.status_message = msg
+
+            state.clear_command()
+    elif event.key == "backspace":
+        state.backspace()
+    elif len(event.key) == 1 and not event.ctrl and not event.alt:
+        # Regular character
+        state.type_char(event.key)
+
+
+def _handle_sidebar_key(event: KeyEvent, state: AppState) -> None:
+    """Handle keys when sidebar is focused."""
+    # Sidebar doesn't have interactive elements in this version
+    # Could add: expand/collapse sections, change refresh rate, etc.
+    pass
 
 
 def run_demo() -> None:

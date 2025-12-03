@@ -240,3 +240,79 @@ def test_parse_command_unknown():
 
     assert result.action == "error"
     assert "Unknown" in result.message
+
+
+def test_handle_key_quit():
+    """handle_key processes quit keys."""
+    from flow.cli.demo import AppState, handle_key
+    from flow.renderer.console.input import KeyEvent
+
+    state = AppState(width=80, height=24)
+    event = KeyEvent(key="q")
+
+    handle_key(event, state)
+
+    assert state.running is False
+
+
+def test_handle_key_tab_cycles_focus():
+    """handle_key Tab cycles focus areas."""
+    from flow.cli.demo import AppState, FocusArea, handle_key
+    from flow.renderer.console.input import KeyEvent
+
+    state = AppState(width=80, height=24)
+    assert state.focus == FocusArea.PROCESSES
+
+    event = KeyEvent(key="tab")
+    handle_key(event, state)
+
+    assert state.focus == FocusArea.COMMAND
+
+
+def test_handle_key_arrows_scroll():
+    """handle_key arrows scroll process list."""
+    from flow.cli.demo import AppState, FocusArea, ProcessInfo, handle_key
+    from flow.renderer.console.input import KeyEvent
+
+    state = AppState(width=80, height=24)
+    state.focus = FocusArea.PROCESSES
+    # Create fake processes for scrolling
+    state.processes = [
+        ProcessInfo(pid=i, name=f"proc{i}", cpu_percent=0, memory_mb=0) for i in range(100)
+    ]
+
+    event = KeyEvent(key="down")
+    handle_key(event, state)
+
+    assert state.scroll_offset == 1
+
+
+def test_handle_key_typing_in_command():
+    """handle_key types characters when command focused."""
+    from flow.cli.demo import AppState, FocusArea, handle_key
+    from flow.renderer.console.input import KeyEvent
+
+    state = AppState(width=80, height=24)
+    state.focus = FocusArea.COMMAND
+
+    for char in "kill":
+        event = KeyEvent(key=char)
+        handle_key(event, state)
+
+    assert state.command_input == "kill"
+
+
+def test_handle_key_enter_executes_command():
+    """handle_key Enter executes command."""
+    from flow.cli.demo import AppState, FocusArea, handle_key
+    from flow.renderer.console.input import KeyEvent
+
+    state = AppState(width=80, height=24)
+    state.focus = FocusArea.COMMAND
+    state.command_input = "top"
+
+    event = KeyEvent(key="enter")
+    handle_key(event, state)
+
+    assert state.sort_by == "cpu"
+    assert state.command_input == ""  # Cleared after execution
