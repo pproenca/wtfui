@@ -109,3 +109,52 @@ def test_collect_processes_sorted_by_cpu():
     if len(procs) >= 2:
         # Should be sorted descending by CPU
         assert procs[0].cpu_percent >= procs[-1].cpu_percent
+
+
+def test_build_layout_tree():
+    """build_layout_tree creates LayoutNode hierarchy."""
+    from flow.cli.demo import AppState, build_layout_tree
+    from flow.layout.node import LayoutNode
+
+    state = AppState(width=80, height=24)
+    root = build_layout_tree(state)
+
+    assert isinstance(root, LayoutNode)
+    assert len(root.children) == 3  # header, main, footer
+
+
+def test_layout_tree_has_correct_structure():
+    """Layout tree matches dashboard structure."""
+    from flow.cli.demo import AppState, build_layout_tree
+    from flow.layout.style import FlexDirection
+
+    state = AppState(width=80, height=24)
+    root = build_layout_tree(state)
+
+    # Root should be column
+    assert root.style.flex_direction == FlexDirection.COLUMN
+
+    # Main (second child) should be row with two children
+    main = root.children[1]
+    assert main.style.flex_direction == FlexDirection.ROW
+    assert len(main.children) == 2  # sidebar, content
+
+
+def test_layout_computes_positions():
+    """Layout computation assigns positions to nodes."""
+    from flow.cli.demo import AppState, build_layout_tree
+    from flow.layout.compute import compute_layout
+    from flow.layout.types import Size
+
+    state = AppState(width=80, height=24)
+    root = build_layout_tree(state)
+
+    compute_layout(root, Size(80, 24))
+
+    # Root should fill available space
+    assert root.layout.width == 80
+    assert root.layout.height == 24
+
+    # Header should be at top
+    header = root.children[0]
+    assert header.layout.top == 0

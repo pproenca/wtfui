@@ -16,6 +16,10 @@ import sys
 from dataclasses import dataclass, field
 from enum import Enum, auto
 
+from flow.layout.node import LayoutNode
+from flow.layout.style import FlexDirection, FlexStyle, JustifyContent
+from flow.layout.types import Dimension
+
 # Check for psutil availability
 try:
     import psutil
@@ -208,6 +212,98 @@ def collect_processes(
         procs.sort(key=lambda p: p.name.lower())
 
     return procs[:limit]
+
+
+# ============================================================
+# STEP 4: Layout Tree Builder
+# ============================================================
+
+
+def build_layout_tree(state: AppState) -> LayoutNode:
+    """Build the Yoga layout tree for the dashboard.
+
+    This demonstrates:
+    - Row and column layouts
+    - Fixed and flexible sizing
+    - Nested containers
+    - Gap and padding
+    - Alignment properties
+
+    Args:
+        state: Current application state (for dimensions).
+
+    Returns:
+        Root LayoutNode ready for compute_layout().
+    """
+    # ============================================================
+    # ROOT: Column layout filling terminal
+    # ============================================================
+    root = LayoutNode(
+        style=FlexStyle(
+            flex_direction=FlexDirection.COLUMN,
+            width=Dimension.points(state.width),
+            height=Dimension.points(state.height),
+        ),
+    )
+
+    # ============================================================
+    # HEADER: Row with space-between for title and clock
+    # Demonstrates: justify_content=SPACE_BETWEEN
+    # ============================================================
+    header = LayoutNode(
+        style=FlexStyle(
+            flex_direction=FlexDirection.ROW,
+            justify_content=JustifyContent.SPACE_BETWEEN,
+            height=Dimension.points(1),
+        ),
+    )
+    root.add_child(header)
+
+    # ============================================================
+    # MAIN: Row with sidebar and content
+    # Demonstrates: flex_grow, fixed width, gap
+    # ============================================================
+    main = LayoutNode(
+        style=FlexStyle(
+            flex_direction=FlexDirection.ROW,
+            flex_grow=1,
+            gap=1,
+        ),
+    )
+    root.add_child(main)
+
+    # Sidebar: Fixed width column
+    sidebar = LayoutNode(
+        style=FlexStyle(
+            flex_direction=FlexDirection.COLUMN,
+            width=Dimension.points(18),
+            gap=1,
+        ),
+    )
+    main.add_child(sidebar)
+
+    # Content: Flexible width for process list
+    content = LayoutNode(
+        style=FlexStyle(
+            flex_direction=FlexDirection.COLUMN,
+            flex_grow=1,
+        ),
+    )
+    main.add_child(content)
+
+    # ============================================================
+    # FOOTER: Command input bar
+    # Demonstrates: fixed height row
+    # ============================================================
+    footer = LayoutNode(
+        style=FlexStyle(
+            flex_direction=FlexDirection.ROW,
+            height=Dimension.points(1),
+        ),
+    )
+    root.add_child(footer)
+
+    return root
 
 
 def run_demo() -> None:
