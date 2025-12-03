@@ -20,8 +20,8 @@ jobs:
         with:
           enable-cache: true
 
-      - name: Set up Python 3.14
-        run: uv python install 3.14
+      - name: Set up Python 3.14t (Free-Threaded)
+        run: uv python install 3.14t
 
       - name: Install dependencies
         run: uv sync --dev
