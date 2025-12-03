@@ -11,7 +11,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-demo = ["psutil>=5.9"]
+demo = ["psutil>=5.9", "types-psutil>=5.9"]
 dev = [
     "pytest>=8.0.0",
     "pytest-asyncio>=0.23.0",
@@ -152,6 +152,7 @@ module = [
     "playwright.*",
     "pytest_playwright.*",
     "httpx.*",
+    "psutil.*",
 ]
 ignore_missing_imports = true
 
