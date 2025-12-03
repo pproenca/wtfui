@@ -6,6 +6,7 @@ Core Features:
 - Atomic Reactivity: Signal → Effect → Computed
 - Universal Runtime: Same code on server and client
 - Zero-Build Dev: Just run `python app.py`
+- FlowByte: Compile to binary bytecode for fast browser execution
 
 Quick Start:
     from flow import component, Signal
@@ -21,6 +22,15 @@ Quick Start:
             with Button("Inc", on_click=lambda: setattr(count, 'value', count.value + 1)):
                 pass
         return root
+
+FlowByte Compilation:
+    from flow.compiler import compile_to_flowbyte, compile_parallel
+
+    # Single-threaded compilation
+    binary = compile_to_flowbyte(source_code)
+
+    # Parallel compilation (Python 3.14 No-GIL)
+    binary = compile_parallel(source_code, max_workers=4)
 """
 
 from flow.component import component

@@ -51,6 +51,10 @@ class BytecodeWriter:
         """Write an opcode (u8)."""
         self.code.extend(struct.pack("!B", op))
 
+    def emit_u8(self, val: int) -> None:
+        """Write unsigned byte."""
+        self.code.extend(struct.pack("!B", val))
+
     def emit_u16(self, val: int) -> None:
         """Write unsigned short (Big-Endian)."""
         self.code.extend(struct.pack("!H", val))

@@ -3,6 +3,8 @@
 import tempfile
 from pathlib import Path
 
+import pytest
+
 from flow.build.artifacts import (
     generate_client_bundle,
     generate_html_shell,
@@ -46,7 +48,9 @@ async def App():
 """
     with tempfile.TemporaryDirectory() as tmpdir:
         output = Path(tmpdir) / "client.py"
-        generate_client_bundle(source, output)
+        # Expect warning about removed server import
+        with pytest.warns(UserWarning, match="Removed server-only import"):
+            generate_client_bundle(source, output)
 
         content = output.read_text()
         assert "import sqlalchemy" not in content

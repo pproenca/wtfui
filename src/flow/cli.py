@@ -72,7 +72,21 @@ def dev(app_path: str, host: str, port: int, reload: bool) -> None:
     default="flowbyte",
     help="Build format (default: flowbyte)",
 )
-def build(app_path: str, output: str, title: str, format: str) -> None:
+@click.option(
+    "--parallel",
+    "-p",
+    is_flag=True,
+    help="Enable parallel compilation (Python 3.14 No-GIL)",
+)
+@click.option(
+    "--workers",
+    "-w",
+    default=4,
+    help="Number of parallel workers (default: 4)",
+)
+def build(
+    app_path: str, output: str, title: str, format: str, parallel: bool, workers: int
+) -> None:
     """Build the app for production.
 
     APP_PATH: Module path to your app (e.g., 'myapp:app')
@@ -80,6 +94,8 @@ def build(app_path: str, output: str, title: str, format: str) -> None:
     click.echo(f"📦 Building Flow app: {app_path}")
     click.echo(f"   Output: {output}/")
     click.echo(f"   Format: {format}")
+    if parallel:
+        click.echo(f"   Parallel: {workers} workers")
 
     # Parse app path
     try:
@@ -112,7 +128,7 @@ def build(app_path: str, output: str, title: str, format: str) -> None:
     source_code = source_file.read_text()
 
     if format == "flowbyte":
-        _build_flowbyte(source_code, module_name, output_path, title)
+        _build_flowbyte(source_code, module_name, output_path, title, parallel, workers)
     else:
         _build_pyodide(source_code, module_name, output_path, title)
 
@@ -207,12 +223,24 @@ flow build
     click.echo("  flow dev")
 
 
-def _build_flowbyte(source_code: str, module_name: str, output_path: Path, title: str) -> None:
+def _build_flowbyte(
+    source_code: str,
+    module_name: str,
+    output_path: Path,
+    title: str,
+    parallel: bool = False,
+    workers: int = 4,
+) -> None:
     """Build FlowByte binary and VM shell."""
-    from flow.compiler.flowbyte import compile_to_flowbyte
-
     # 1. Compile to FlowByte binary
-    binary = compile_to_flowbyte(source_code)
+    if parallel:
+        from flow.compiler.parallel import compile_parallel
+
+        binary = compile_parallel(source_code, max_workers=workers)
+    else:
+        from flow.compiler.flowbyte import compile_to_flowbyte
+
+        binary = compile_to_flowbyte(source_code)
     fbc_file = output_path / f"{module_name}.fbc"
     fbc_file.write_bytes(binary)
     click.echo(f"   FlowByte binary: {fbc_file} ({len(binary)} bytes)")
@@ -268,13 +296,17 @@ def _build_pyodide(source_code: str, module_name: str, output_path: Path, title:
 
 
 def _get_vm_inline() -> str:
-    """Return inline JavaScript for FlowByte VM."""
-    # Simplified inline VM for production builds
+    """Return inline JavaScript for FlowByte VM.
+
+    This is a stack-based virtual machine that executes FlowByte bytecode.
+    All arithmetic and comparison operations use the stack.
+    """
     return """
 class FlowVM {
     signals = new Map();
     nodes = new Map();
     strings = [];
+    stack = [];  // Operand stack for stack-based execution
     view = null;
     root = null;
 
@@ -308,19 +340,176 @@ class FlowVM {
         while (run && pc < v.byteLength) {
             const op = v.getUint8(pc++);
             switch (op) {
+                // --- SIGNALS & STATE (0x00 - 0x1F) ---
                 case 0x01: { // INIT_SIG_NUM
                     const id = v.getUint16(pc, false); pc += 2;
                     const val = v.getFloat64(pc, false); pc += 8;
                     this.signals.set(id, { value: val, subs: new Set() });
                     break;
                 }
-                case 0x25: { // INC_CONST
+                case 0x02: { // INIT_SIG_STR
+                    const id = v.getUint16(pc, false); pc += 2;
+                    const strId = v.getUint16(pc, false); pc += 2;
+                    this.signals.set(id, { value: this.strings[strId], subs: new Set() });
+                    break;
+                }
+                case 0x03: { // SET_SIG_NUM
+                    const id = v.getUint16(pc, false); pc += 2;
+                    const val = v.getFloat64(pc, false); pc += 8;
+                    const s = this.signals.get(id);
+                    if (s) { s.value = val; s.subs.forEach(f => f()); }
+                    break;
+                }
+                case 0x25: { // INC_CONST (legacy)
                     const id = v.getUint16(pc, false); pc += 2;
                     const amt = v.getFloat64(pc, false); pc += 8;
                     const s = this.signals.get(id);
                     if (s) { s.value += amt; s.subs.forEach(f => f()); }
                     break;
                 }
+
+                // --- STACK OPERATIONS (0xA0 - 0xBF) ---
+                case 0xA0: { // PUSH_NUM
+                    const val = v.getFloat64(pc, false); pc += 8;
+                    this.stack.push(val);
+                    break;
+                }
+                case 0xA1: { // PUSH_STR
+                    const strId = v.getUint16(pc, false); pc += 2;
+                    this.stack.push(this.strings[strId]);
+                    break;
+                }
+                case 0xA2: { // LOAD_SIG (push signal value to stack)
+                    const id = v.getUint16(pc, false); pc += 2;
+                    const s = this.signals.get(id);
+                    this.stack.push(s ? s.value : 0);
+                    break;
+                }
+                case 0xA3: { // STORE_SIG (pop stack, store to signal)
+                    const id = v.getUint16(pc, false); pc += 2;
+                    const val = this.stack.pop();
+                    const s = this.signals.get(id);
+                    if (s) { s.value = val; s.subs.forEach(f => f()); }
+                    break;
+                }
+                case 0xA4: { // POP (discard N values)
+                    const cnt = v.getUint8(pc++);
+                    for (let i = 0; i < cnt; i++) this.stack.pop();
+                    break;
+                }
+                case 0xA5: { // DUP (duplicate top)
+                    if (this.stack.length > 0) {
+                        this.stack.push(this.stack[this.stack.length - 1]);
+                    }
+                    break;
+                }
+
+                // --- STACK-BASED ARITHMETIC (0x22 - 0x27) ---
+                case 0x22: { // MUL: pop b, pop a, push a * b
+                    const b = this.stack.pop();
+                    const a = this.stack.pop();
+                    this.stack.push(a * b);
+                    break;
+                }
+                case 0x23: { // DIV: pop b, pop a, push a / b
+                    const b = this.stack.pop();
+                    const a = this.stack.pop();
+                    this.stack.push(a / b);
+                    break;
+                }
+                case 0x24: { // MOD: pop b, pop a, push a % b
+                    const b = this.stack.pop();
+                    const a = this.stack.pop();
+                    this.stack.push(a % b);
+                    break;
+                }
+                case 0x26: { // ADD_STACK: pop b, pop a, push a + b
+                    const b = this.stack.pop();
+                    const a = this.stack.pop();
+                    this.stack.push(a + b);
+                    break;
+                }
+                case 0x27: { // SUB_STACK: pop b, pop a, push a - b
+                    const b = this.stack.pop();
+                    const a = this.stack.pop();
+                    this.stack.push(a - b);
+                    break;
+                }
+
+                // --- COMPARISON OPERATORS (0x30 - 0x35) ---
+                case 0x30: { // EQ: a == b
+                    const b = this.stack.pop();
+                    const a = this.stack.pop();
+                    this.stack.push(a === b ? 1 : 0);
+                    break;
+                }
+                case 0x31: { // NE: a != b
+                    const b = this.stack.pop();
+                    const a = this.stack.pop();
+                    this.stack.push(a !== b ? 1 : 0);
+                    break;
+                }
+                case 0x32: { // LT: a < b
+                    const b = this.stack.pop();
+                    const a = this.stack.pop();
+                    this.stack.push(a < b ? 1 : 0);
+                    break;
+                }
+                case 0x33: { // LE: a <= b
+                    const b = this.stack.pop();
+                    const a = this.stack.pop();
+                    this.stack.push(a <= b ? 1 : 0);
+                    break;
+                }
+                case 0x34: { // GT: a > b
+                    const b = this.stack.pop();
+                    const a = this.stack.pop();
+                    this.stack.push(a > b ? 1 : 0);
+                    break;
+                }
+                case 0x35: { // GE: a >= b
+                    const b = this.stack.pop();
+                    const a = this.stack.pop();
+                    this.stack.push(a >= b ? 1 : 0);
+                    break;
+                }
+
+                // --- INTRINSIC CALLS (0xC0) ---
+                case 0xC0: { // CALL_INTRINSIC
+                    const intrinsicId = v.getUint8(pc++);
+                    const argc = v.getUint8(pc++);
+                    const args = [];
+                    for (let i = 0; i < argc; i++) {
+                        args.unshift(this.stack.pop());  // Pop in reverse order
+                    }
+                    const result = this.callIntrinsic(intrinsicId, args);
+                    if (result !== undefined) {
+                        this.stack.push(result);
+                    }
+                    break;
+                }
+
+                // --- CONTROL FLOW (0x40 - 0x5F) ---
+                case 0x40: { // JMP_TRUE
+                    const sigId = v.getUint16(pc, false); pc += 2;
+                    const addr = v.getUint32(pc, false); pc += 4;
+                    const s = this.signals.get(sigId);
+                    if (s && s.value) pc = addr;
+                    break;
+                }
+                case 0x41: { // JMP_FALSE
+                    const sigId = v.getUint16(pc, false); pc += 2;
+                    const addr = v.getUint32(pc, false); pc += 4;
+                    const s = this.signals.get(sigId);
+                    if (!s || !s.value) pc = addr;
+                    break;
+                }
+                case 0x42: { // JMP
+                    pc = v.getUint32(pc, false);
+                    break;
+                }
+
+                // --- DOM MANIPULATION (0x60 - 0x8F) ---
                 case 0x60: { // DOM_CREATE
                     const nid = v.getUint16(pc, false); pc += 2;
                     const tid = v.getUint16(pc, false); pc += 2;
@@ -362,13 +551,90 @@ class FlowVM {
                     if (n) n.addEventListener('click', () => this.execute(addr));
                     break;
                 }
-                case 0x42: { // JMP
-                    pc = v.getUint32(pc, false);
+                case 0x65: { // DOM_ATTR_CLASS
+                    const nid = v.getUint16(pc, false); pc += 2;
+                    const sid = v.getUint16(pc, false); pc += 2;
+                    const n = this.nodes.get(nid);
+                    if (n) n.className = this.strings[sid];
                     break;
                 }
-                case 0xFF: run = false; break;
+                case 0x66: { // DOM_STYLE_STATIC
+                    const nid = v.getUint16(pc, false); pc += 2;
+                    const propId = v.getUint16(pc, false); pc += 2;
+                    const valId = v.getUint16(pc, false); pc += 2;
+                    const n = this.nodes.get(nid);
+                    if (n) {
+                        const prop = this.strings[propId];
+                        const val = this.strings[valId];
+                        // Convert kebab-case to camelCase for JS style API
+                        const jsProp = prop.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+                        n.style[jsProp] = val;
+                    }
+                    break;
+                }
+                case 0x67: { // DOM_STYLE_DYN
+                    const nid = v.getUint16(pc, false); pc += 2;
+                    const propId = v.getUint16(pc, false); pc += 2;
+                    const val = this.stack.pop();
+                    const n = this.nodes.get(nid);
+                    if (n) {
+                        const prop = this.strings[propId];
+                        if (prop === 'cssText') {
+                            // Apply full CSS text
+                            n.style.cssText = String(val);
+                        } else {
+                            // Convert kebab-case to camelCase
+                            const jsProp = prop.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+                            n.style[jsProp] = String(val);
+                        }
+                    }
+                    break;
+                }
+                case 0x68: { // DOM_ATTR
+                    const nid = v.getUint16(pc, false); pc += 2;
+                    const attrId = v.getUint16(pc, false); pc += 2;
+                    const valId = v.getUint16(pc, false); pc += 2;
+                    const n = this.nodes.get(nid);
+                    if (n) n.setAttribute(this.strings[attrId], this.strings[valId]);
+                    break;
+                }
+                case 0x69: { // DOM_BIND_ATTR
+                    const nid = v.getUint16(pc, false); pc += 2;
+                    const attrId = v.getUint16(pc, false); pc += 2;
+                    const sigId = v.getUint16(pc, false); pc += 2;
+                    const n = this.nodes.get(nid);
+                    const s = this.signals.get(sigId);
+                    const attr = this.strings[attrId];
+                    if (n && s) {
+                        const upd = () => n.setAttribute(attr, s.value);
+                        s.subs.add(upd);
+                        upd();
+                    }
+                    break;
+                }
+
+                case 0xFF: run = false; break;  // HALT
                 default: console.error('Unknown op:', op.toString(16)); run = false;
             }
+        }
+    }
+
+    callIntrinsic(id, args) {
+        switch (id) {
+            case 0x01: // PRINT
+                console.log(...args);
+                return undefined;
+            case 0x02: // LEN
+                return args[0]?.length ?? 0;
+            case 0x03: // STR
+                return String(args[0]);
+            case 0x04: // INT
+                return Math.floor(Number(args[0]));
+            case 0x05: // RANGE
+                return Array.from({length: args[0]}, (_, i) => i);
+            default:
+                console.error('Unknown intrinsic:', id);
+                return undefined;
         }
     }
 }

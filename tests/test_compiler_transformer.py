@@ -1,5 +1,7 @@
 """Tests for client-safe AST transformation."""
 
+import pytest
+
 from flow.compiler.transformer import transform_for_client
 
 
@@ -32,7 +34,9 @@ async def save_to_db(data: str):
     db.save(data)
     return "saved"
 """
-    result = transform_for_client(source)
+    # Expect warning about removed server import
+    with pytest.warns(UserWarning, match="Removed server-only import"):
+        result = transform_for_client(source)
 
     assert "@rpc" in result
     assert "async def save_to_db" in result
@@ -54,7 +58,9 @@ from flow import component
 async def App():
     pass
 """
-    result = transform_for_client(source)
+    # Expect warnings about removed server imports
+    with pytest.warns(UserWarning, match="Removed server-only import"):
+        result = transform_for_client(source)
 
     assert "import sqlalchemy" not in result
     assert "import pandas" not in result
@@ -93,8 +99,9 @@ async def App():
     # This would leak env vars to client!
     api_key = os.environ["SECRET_KEY"]
 """
-    # Should not crash but should remove os import
-    result = transform_for_client(source)
+    # Should not crash but should remove os import and warn
+    with pytest.warns(UserWarning, match="Removed server-only import"):
+        result = transform_for_client(source)
 
     assert "import os" not in result
 

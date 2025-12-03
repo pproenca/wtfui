@@ -8,11 +8,16 @@ All multi-byte arguments are Big-Endian (!).
 
 Opcode Ranges:
 - 0x00-0x1F: Signals & State
-- 0x20-0x3F: Arithmetic
+- 0x20-0x3F: Arithmetic (Stack-Based)
 - 0x40-0x5F: Control Flow
 - 0x60-0x8F: DOM Manipulation
-- 0x90-0xFE: Network (RPC)
+- 0x90-0xBF: Network (RPC)
+- 0xA0-0xBF: Stack Operations
+- 0xC0-0xDF: Intrinsic Calls
 - 0xFF: HALT
+
+Note: This opcode set includes both register-based (legacy) and stack-based opcodes.
+Stack-based opcodes are preferred for new code and will eventually replace register-based ones.
 """
 
 from enum import IntEnum
@@ -90,11 +95,117 @@ class OpCode(IntEnum):
     # Args: [NODE_ID: u16] [STR_ID: u16]
     DOM_ATTR_CLASS = 0x65
 
-    # --- NETWORK (0x90 - 0xFF) ---
+    # Set Inline Style (Static) - compile-time extracted styles.
+    # Args: [NODE_ID: u16] [PROP_STR_ID: u16] [VALUE_STR_ID: u16]
+    # Example: DOM_STYLE_STATIC(node, "background", "blue")
+    DOM_STYLE_STATIC = 0x66
+
+    # Set Inline Style (Dynamic) - runtime evaluated styles.
+    # Pops value from stack, applies as style property.
+    # Args: [NODE_ID: u16] [PROP_STR_ID: u16]
+    # Stack: [value] -> []
+    # Fallback when static extraction fails (e.g., f-string styles).
+    DOM_STYLE_DYN = 0x67
+
+    # Set Generic Attribute.
+    # Args: [NODE_ID: u16] [ATTR_STR_ID: u16] [VALUE_STR_ID: u16]
+    DOM_ATTR = 0x68
+
+    # Bind Attribute to Signal (Reactive).
+    # Args: [NODE_ID: u16] [ATTR_STR_ID: u16] [SIG_ID: u16]
+    DOM_BIND_ATTR = 0x69
+
+    # --- NETWORK (0x90 - 0x9F) ---
 
     # Call Server RPC.
     # Args: [FUNC_STR_ID: u16] [RESULT_SIG_ID: u16]
     RPC_CALL = 0x90
+
+    # --- STACK OPERATIONS (0xA0 - 0xBF) ---
+
+    # Push numeric constant to stack.
+    # Args: [VALUE: f64]
+    PUSH_NUM = 0xA0
+
+    # Push string constant to stack.
+    # Args: [STR_ID: u16]
+    PUSH_STR = 0xA1
+
+    # Load signal VALUE to stack (dereference).
+    # Args: [SIG_ID: u16]
+    LOAD_SIG = 0xA2
+
+    # Pop stack, store to signal.
+    # Args: [SIG_ID: u16]
+    STORE_SIG = 0xA3
+
+    # Pop N values from stack (discard).
+    # Args: [COUNT: u8]
+    POP = 0xA4
+
+    # Duplicate top of stack.
+    # Args: None
+    DUP = 0xA5
+
+    # --- STACK-BASED ARITHMETIC (0x20 - 0x2F) ---
+    # Note: These redefine existing opcodes to use stack semantics.
+    # Legacy register-based arithmetic uses 0x20-0x24 range.
+    # Stack-based: Pop 2 operands, push result.
+
+    # ADD (stack-based): Pop b, pop a, push (a + b)
+    # Args: None (operands from stack)
+    ADD_STACK = 0x26
+
+    # SUB (stack-based): Pop b, pop a, push (a - b)
+    # Args: None
+    SUB_STACK = 0x27
+
+    # MUL (stack-based): Pop b, pop a, push (a * b)
+    # Args: None
+    MUL = 0x22
+
+    # DIV (stack-based): Pop b, pop a, push (a / b)
+    # Args: None
+    DIV = 0x23
+
+    # MOD (stack-based): Pop b, pop a, push (a % b)
+    # Args: None
+    MOD = 0x24
+
+    # --- STACK-BASED COMPARISON (0x30 - 0x3F) ---
+
+    # EQ (stack-based): Pop b, pop a, push (a == b)
+    # Args: None
+    EQ = 0x30
+
+    # NE (stack-based): Pop b, pop a, push (a != b)
+    # Args: None
+    NE = 0x31
+
+    # LT (stack-based): Pop b, pop a, push (a < b)
+    # Args: None
+    LT = 0x32
+
+    # LE (stack-based): Pop b, pop a, push (a <= b)
+    # Args: None
+    LE = 0x33
+
+    # GT (stack-based): Pop b, pop a, push (a > b)
+    # Args: None
+    GT = 0x34
+
+    # GE (stack-based): Pop b, pop a, push (a >= b)
+    # Args: None
+    GE = 0x35
+
+    # --- INTRINSIC CALLS (0xC0 - 0xDF) ---
+
+    # Call builtin function (print, len, str, etc.).
+    # Pops ARGC arguments from stack, pushes result (if any).
+    # Args: [INTRINSIC_ID: u8] [ARGC: u8]
+    CALL_INTRINSIC = 0xC0
+
+    # --- CONTROL ---
 
     # End of Bytecode
     HALT = 0xFF
