@@ -316,3 +316,17 @@ def test_handle_key_enter_executes_command():
 
     assert state.sort_by == "cpu"
     assert state.command_input == ""  # Cleared after execution
+
+
+def test_update_stats_modifies_state():
+    """update_stats refreshes system statistics."""
+    from flow.cli.demo import AppState, update_stats
+
+    state = AppState(width=80, height=24)
+    assert state.stats.cpu_percent == 0.0
+
+    update_stats(state)
+
+    # Stats should be populated (actual values depend on system)
+    assert state.stats.memory_total_gb > 0
+    assert len(state.processes) > 0

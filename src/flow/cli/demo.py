@@ -12,18 +12,23 @@ Run with: uv run flow demo console
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
 import sys
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum, auto
 from typing import TYPE_CHECKING
 
+from flow.layout.compute import compute_layout
 from flow.layout.node import LayoutNode
 from flow.layout.style import FlexDirection, FlexStyle, JustifyContent
-from flow.layout.types import Dimension
+from flow.layout.types import Dimension, Size
+from flow.renderer.console import ConsoleRenderer
+from flow.renderer.console.input import parse_key_sequence, read_key_async
+from flow.renderer.console.terminal import TerminalContext, get_terminal_size
 
 if TYPE_CHECKING:
-    from flow.renderer.console import ConsoleRenderer
     from flow.renderer.console.input import KeyEvent
 
 # Check for psutil availability
@@ -633,29 +638,121 @@ def _handle_sidebar_key(event: KeyEvent, state: AppState) -> None:
     pass
 
 
+# ============================================================
+# STEP 8: Main Loop
+# ============================================================
+
+
+def update_stats(state: AppState) -> None:
+    """Refresh system statistics in state.
+
+    Collects CPU, memory, disk stats and process list.
+    Updates spinner frame for animation.
+
+    Args:
+        state: Application state to update.
+    """
+    state.stats = collect_stats()
+    state.processes = collect_processes(
+        limit=100,
+        sort_by=state.sort_by,
+        filter_text=state.filter_text,
+    )
+    state.spinner_frame += 1
+
+
+async def input_loop(state: AppState) -> None:
+    """Async loop for reading keyboard input.
+
+    Runs in background, parsing key events and updating state.
+    """
+    while state.running:
+        with contextlib.suppress(Exception):
+            seq = await read_key_async()
+            event = parse_key_sequence(seq)
+            handle_key(event, state)
+
+
+async def render_loop(
+    state: AppState,
+    renderer: ConsoleRenderer,
+) -> None:
+    """Async loop for rendering frames.
+
+    Runs at ~12 FPS (80ms per frame) for smooth animation.
+    """
+    while state.running:
+        # Update stats periodically
+        update_stats(state)
+
+        # Build and compute layout
+        root = build_layout_tree(state)
+        compute_layout(root, Size(state.width, state.height))
+
+        # Render to buffer
+        render_layout(renderer, root, state)
+
+        # Flush differential output
+        output = renderer.flush()
+        renderer.write_to_stdout(output)
+
+        # Wait for next frame (~12 FPS)
+        await asyncio.sleep(0.08)
+
+
+async def main_async(width: int, height: int) -> None:
+    """Main async entry point.
+
+    Sets up terminal, starts input and render loops,
+    cleans up on exit.
+    """
+    state = AppState(width=width, height=height)
+
+    # Initialize with first stats collection
+    update_stats(state)
+
+    with TerminalContext(width=width, height=height) as ctx:
+        renderer = ConsoleRenderer(width=ctx.width, height=ctx.height)
+
+        # Run input and render loops concurrently
+        input_task = asyncio.create_task(input_loop(state))
+        render_task = asyncio.create_task(render_loop(state, renderer))
+
+        try:
+            # Wait for either to complete (quit signal)
+            done, pending = await asyncio.wait(
+                [input_task, render_task],
+                return_when=asyncio.FIRST_COMPLETED,
+            )
+
+            # Cancel remaining tasks
+            for task in pending:
+                task.cancel()
+                with contextlib.suppress(asyncio.CancelledError):
+                    await task
+        except KeyboardInterrupt:
+            state.running = False
+
+
 def run_demo() -> None:
     """Main entry point for the console demo.
 
     This function is called by the CLI when running:
         uv run flow demo console
+
+    Sets up the terminal environment and runs the async main loop.
     """
     if not HAS_PSUTIL:
         print("Error: psutil is required for the demo.")
         print("Install with: uv sync --extra demo")
         sys.exit(1)
 
-    print("System Monitor Demo")
-    print("(Full implementation in subsequent tasks)")
-    print("Press Ctrl+C to exit")
+    width, height = get_terminal_size()
 
-    try:
-        # Placeholder - will be replaced with actual async loop
-        import time
+    with contextlib.suppress(KeyboardInterrupt):
+        asyncio.run(main_async(width, height))
 
-        while True:
-            time.sleep(1)
-    except KeyboardInterrupt:
-        print("\nExiting...")
+    print("Goodbye!")
 
 
 if __name__ == "__main__":
