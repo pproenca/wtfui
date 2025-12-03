@@ -11,6 +11,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+demo = ["psutil>=5.9"]
 dev = [
     "pytest>=8.0.0",
     "pytest-asyncio>=0.23.0",
