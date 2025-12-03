@@ -330,3 +330,97 @@ def test_update_stats_modifies_state():
     # Stats should be populated (actual values depend on system)
     assert state.stats.memory_total_gb > 0
     assert len(state.processes) > 0
+
+
+# ============================================================
+# Integration Tests
+# ============================================================
+
+
+def test_demo_full_render_cycle():
+    """Full render cycle produces valid output."""
+    from flow.cli.demo import AppState, build_layout_tree, render_layout, update_stats
+    from flow.layout.compute import compute_layout
+    from flow.layout.types import Size
+    from flow.renderer.console import ConsoleRenderer
+
+    # Setup
+    state = AppState(width=80, height=24)
+    update_stats(state)
+
+    # Build layout
+    root = build_layout_tree(state)
+    compute_layout(root, Size(80, 24))
+
+    # Render
+    renderer = ConsoleRenderer(width=80, height=24)
+    render_layout(renderer, root, state)
+    output = renderer.flush()
+
+    # Verify output contains expected elements
+    assert "System Monitor" in output
+    assert "CPU" in output
+    assert "PID" in output
+    assert ">" in output  # Command prompt
+
+    # Verify ANSI codes present
+    assert "\x1b[" in output
+
+
+def test_demo_keyboard_workflow():
+    """Keyboard input workflow functions correctly."""
+    from flow.cli.demo import AppState, FocusArea, handle_key
+    from flow.renderer.console.input import KeyEvent
+
+    state = AppState(width=80, height=24)
+
+    # Tab to command input
+    handle_key(KeyEvent(key="tab"), state)
+    assert state.focus == FocusArea.COMMAND
+
+    # Type a command
+    for char in "filter py":
+        handle_key(KeyEvent(key=char), state)
+
+    assert state.command_input == "filter py"
+
+    # Execute command
+    handle_key(KeyEvent(key="enter"), state)
+
+    assert state.filter_text == "py"
+    assert state.command_input == ""
+
+
+def test_demo_command_affects_render():
+    """Commands affect what gets rendered."""
+    from flow.cli.demo import (
+        AppState,
+        build_layout_tree,
+        parse_command,
+        render_layout,
+        update_stats,
+    )
+    from flow.layout.compute import compute_layout
+    from flow.layout.types import Size
+    from flow.renderer.console import ConsoleRenderer
+
+    state = AppState(width=80, height=24)
+    update_stats(state)
+
+    # Apply a sort command
+    parse_command("sort mem", state)
+    assert state.sort_by == "mem"
+
+    # Update stats with new sort order
+    update_stats(state)
+
+    # Build and render
+    root = build_layout_tree(state)
+    compute_layout(root, Size(80, 24))
+    renderer = ConsoleRenderer(width=80, height=24)
+    render_layout(renderer, root, state)
+    output = renderer.flush()
+
+    # Basic verification that render still works
+    assert "System Monitor" in output
+    assert len(output) > 100  # Should have substantial output
