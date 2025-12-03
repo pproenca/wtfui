@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Flow Developer Script - Interactive development helper
+# Flow Developer Script - Thin wrapper around Flow CLI and project tools
 # Usage: ./dev [command]
 
 set -eo pipefail
@@ -39,7 +39,7 @@ print_warning() {
 # Command: setup
 cmd_setup() {
     print_info "Installing dependencies..."
-    uv sync --extra dev
+    uv sync --all-extras --dev
     print_success "Dependencies installed!"
 
     if [ ! -f ".git/hooks/pre-commit" ]; then
@@ -47,15 +47,6 @@ cmd_setup() {
         uv run pre-commit install
         print_success "Pre-commit hooks installed!"
     fi
-}
-
-# Command: start (dev server)
-cmd_start() {
-    local app_path="${1:-examples.todo.app:app}"
-    print_info "Starting dev server..."
-    echo -e "${CYAN}   App: ${app_path}${NC}"
-    echo -e "${CYAN}   URL: http://127.0.0.1:8000${NC}\n"
-    uv run flow dev "$app_path"
 }
 
 # Command: test
@@ -72,12 +63,16 @@ cmd_test_cov() {
     uv run pytest --cov=src/flow --cov-report=term-missing "$@"
 }
 
-# Command: build
-cmd_build() {
-    local app_path="${1:-examples.todo.app:app}"
-    local output="${2:-dist}"
-    print_info "Building for production..."
-    uv run flow build "$app_path" -o "$output"
+# Command: test excluding E2E
+cmd_test_fast() {
+    print_info "Running tests (excluding E2E)..."
+    uv run pytest tests/ --ignore=tests/e2e -v "$@"
+}
+
+# Command: gatekeeper tests
+cmd_test_gate() {
+    print_info "Running gatekeeper tests..."
+    uv run pytest tests/gatekeepers/ -v -m gatekeeper "$@"
 }
 
 # Command: lint
@@ -95,115 +90,43 @@ cmd_lint() {
     print_success "Type check complete!"
 }
 
-# Command: new project
-cmd_new() {
-    local name="$1"
-    if [ -z "$name" ]; then
-        echo -n "Project name: "
-        read -r name
-    fi
-
-    if [ -z "$name" ]; then
-        print_error "Project name is required"
-        exit 1
-    fi
-
-    print_info "Creating new Flow project: $name"
-    uv run flow new "$name"
+# Command: pre-commit (all checks)
+cmd_check() {
+    print_info "Running all pre-commit checks..."
+    uv run pre-commit run --all-files
 }
 
 # Command: help
 cmd_help() {
     echo -e "${BOLD}Usage:${NC} ./dev [command] [options]"
     echo ""
-    echo -e "${BOLD}Commands:${NC}"
-    echo -e "  ${CYAN}setup${NC}      Install dependencies and pre-commit hooks"
-    echo -e "  ${CYAN}start${NC}      Start the development server"
-    echo -e "  ${CYAN}test${NC}       Run tests (pass args: ./dev test -k 'test_name')"
-    echo -e "  ${CYAN}test:cov${NC}   Run tests with coverage report"
-    echo -e "  ${CYAN}build${NC}      Build for production"
-    echo -e "  ${CYAN}lint${NC}       Run linter, formatter, and type checker"
-    echo -e "  ${CYAN}new${NC}        Create a new Flow project"
-    echo -e "  ${CYAN}help${NC}       Show this help message"
+    echo -e "${BOLD}Setup Commands:${NC}"
+    echo -e "  ${CYAN}setup${NC}       Install dependencies and pre-commit hooks"
+    echo ""
+    echo -e "${BOLD}Flow CLI (delegated to 'uv run flow'):${NC}"
+    echo -e "  ${CYAN}dev${NC}         Start dev server (alias: uv run flow dev)"
+    echo -e "  ${CYAN}build${NC}       Build for production (alias: uv run flow build)"
+    echo -e "  ${CYAN}new${NC}         Create new project (alias: uv run flow new)"
+    echo ""
+    echo -e "${BOLD}Testing Commands:${NC}"
+    echo -e "  ${CYAN}test${NC}        Run all tests (pass args: ./dev test -k 'test_name')"
+    echo -e "  ${CYAN}test:fast${NC}   Run tests excluding E2E (faster iteration)"
+    echo -e "  ${CYAN}test:cov${NC}    Run tests with coverage report"
+    echo -e "  ${CYAN}test:gate${NC}   Run gatekeeper performance & security tests"
+    echo ""
+    echo -e "${BOLD}Code Quality:${NC}"
+    echo -e "  ${CYAN}lint${NC}        Run linter, formatter, and type checker"
+    echo -e "  ${CYAN}check${NC}       Run all pre-commit checks"
     echo ""
     echo -e "${BOLD}Examples:${NC}"
-    echo "  ./dev                    # Interactive menu"
     echo "  ./dev setup              # Install dependencies"
-    echo "  ./dev start myapp:app    # Start with specific app"
+    echo "  ./dev test:fast          # Quick test run"
     echo "  ./dev test -k signal     # Run tests matching 'signal'"
-    echo "  ./dev new my-project     # Create new project"
-}
-
-# Interactive menu
-show_menu() {
-    print_header
-
-    echo -e "${BOLD}What would you like to do?${NC}\n"
-
-    local options=(
-        "Setup      - Install dependencies"
-        "Start      - Start dev server"
-        "Test       - Run tests"
-        "Test+Cov   - Run tests with coverage"
-        "Build      - Build for production"
-        "Lint       - Lint and format code"
-        "New        - Create new project"
-        "Help       - Show help"
-        "Quit"
-    )
-
-    PS3=$'\n\033[0;36mEnter choice [1-'"${#options[@]}"$']:\033[0m '
-
-    select opt in "${options[@]}"; do
-        case $opt in
-            "Setup"*)
-                cmd_setup
-                break
-                ;;
-            "Start"*)
-                echo -n "App path (Enter for examples.todo.app:app): "
-                read -r app_path
-                cmd_start "${app_path:-examples.todo.app:app}"
-                break
-                ;;
-            "Test"*)
-                echo -n "Test arguments (Enter for all): "
-                read -r test_args
-                # shellcheck disable=SC2086  # Word splitting intentional for test args
-                cmd_test $test_args
-                break
-                ;;
-            "Test+Cov"*)
-                cmd_test_cov
-                break
-                ;;
-            "Build"*)
-                echo -n "App path (Enter for examples.todo.app:app): "
-                read -r app_path
-                cmd_build "${app_path:-examples.todo.app:app}"
-                break
-                ;;
-            "Lint"*)
-                cmd_lint
-                break
-                ;;
-            "New"*)
-                cmd_new
-                break
-                ;;
-            "Help"*)
-                cmd_help
-                break
-                ;;
-            "Quit")
-                echo -e "\n${GREEN}Goodbye!${NC}"
-                exit 0
-                ;;
-            *)
-                print_error "Invalid option. Please try again."
-                ;;
-        esac
-    done
+    echo "  ./dev lint               # Format and type check"
+    echo ""
+    echo "  uv run flow dev          # Start dev server (Flow CLI)"
+    echo "  uv run flow build        # Build for production"
+    echo "  uv run flow new myapp    # Create new project"
 }
 
 # Main entry point
@@ -220,33 +143,37 @@ main() {
 
     case "$cmd" in
         "")
-            show_menu
+            cmd_help
             ;;
         setup)
             cmd_setup
-            ;;
-        start)
-            shift
-            cmd_start "$@"
             ;;
         test)
             shift
             cmd_test "$@"
             ;;
+        test:fast)
+            shift
+            cmd_test_fast "$@"
+            ;;
         test:cov)
             shift
             cmd_test_cov "$@"
             ;;
-        build)
+        test:gate)
             shift
-            cmd_build "$@"
+            cmd_test_gate "$@"
             ;;
         lint)
             cmd_lint
             ;;
-        new)
-            shift
-            cmd_new "$@"
+        check)
+            cmd_check
+            ;;
+        # Delegate Flow CLI commands
+        dev|build|new)
+            print_info "Delegating to Flow CLI..."
+            uv run flow "$@"
             ;;
         help|--help|-h)
             cmd_help
