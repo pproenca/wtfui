@@ -4,7 +4,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Flow is a Pythonic UI framework using context managers and signals. It requires **Python 3.14+** for No-GIL (PEP 703) and deferred annotations (PEP 649).
+Flow is a Pythonic UI framework using context managers and signals. It requires **Python 3.14t (Free-Threaded)** for No-GIL (PEP 703) and deferred annotations (PEP 649).
+
+**CRITICAL:** This project uses Python 3.14t (free-threaded build) with the GIL disabled for true parallelism. Verify with:
+```bash
+uv run python -c "import sys; print('GIL enabled:', sys._is_gil_enabled())"
+# Should print: GIL enabled: False
+```
 
 Core principles (from MANIFEST.md):
 - **Indentation is Topology**: Use `with Div():` context managers for DOM hierarchy, not function nesting
@@ -14,9 +20,26 @@ Core principles (from MANIFEST.md):
 
 ## Commands
 
+### Dev Script (Convenience Wrapper)
+```bash
+./dev setup         # Install dependencies and git hooks
+./dev test          # Run all tests
+./dev test:fast     # Run tests excluding E2E (faster iteration)
+./dev test:gate     # Run gatekeeper performance & security tests
+./dev test:cov      # Run tests with coverage
+./dev lint          # Run ruff + mypy
+./dev check         # Run all pre-commit checks
+
+# Flow CLI commands (delegated)
+./dev dev           # Start dev server (delegates to: uv run flow dev)
+./dev build         # Build for production (delegates to: uv run flow build)
+./dev new           # Create new project (delegates to: uv run flow new)
+```
+
+### Direct Commands
 ```bash
 # Setup
-uv sync --dev                    # Install dependencies
+uv sync --all-extras --dev       # Install all dependencies
 uv run pre-commit install        # Install git hooks
 
 # Testing
@@ -40,7 +63,7 @@ uv run mypy src/ tests/
 # Pre-commit (runs all checks: ruff, mypy, bandit, commitizen)
 uv run pre-commit run --all-files
 
-# CLI
+# Flow CLI
 uv run flow dev     # Start dev server
 uv run flow build   # Production build
 uv run flow new     # Create new project

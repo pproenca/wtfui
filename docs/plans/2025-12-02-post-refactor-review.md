@@ -24,7 +24,7 @@ The Flow framework has undergone significant development with the following key 
 - **Build System:** AST splitter, bundle generator, CLI commands
 - **Examples:** Todo, Dashboard, Chat applications
 
-**Test Suite:** 475 tests across unit, integration, and E2E categories.
+**Test Suite:** 487 tests across unit, integration, and E2E categories (60 test files).
 
 **Key Principles (from MANIFEST.md):**
 1. Indentation is Topology (context managers)
@@ -125,11 +125,12 @@ Expected: All pass
 - Test: `tests/test_element.py`
 - Test: `tests/test_context.py`
 - Test: `tests/test_ui_elements.py`
+- Test: `tests/test_style_conflict.py`
 
 **Step 1: Run element tests**
 
 ```bash
-uv run pytest tests/test_element.py tests/test_context.py tests/test_ui_elements.py -v
+uv run pytest tests/test_element.py tests/test_context.py tests/test_ui_elements.py tests/test_style_conflict.py -v
 ```
 
 **Step 2: Verify context manager behavior**
@@ -172,7 +173,23 @@ Expected: All pass
 ### Task 6: Layout Engine Tests
 
 **Files:**
-- Test: `tests/test_layout_*.py` (14 test files)
+- Test: `tests/test_layout_*.py` (17 test files including):
+  - `test_layout_algorithm.py` - Main layout algorithm
+  - `test_layout_compute.py` - Compute layout function
+  - `test_layout_direction.py` - flex-direction
+  - `test_layout_flexline.py` - Flex line handling
+  - `test_layout_intrinsic.py` - min/max-content sizing
+  - `test_layout_cache.py` - Measurement caching
+  - `test_layout_parallel.py` - Parallel computation
+  - `test_layout_aspect_ratio.py` - Aspect ratio handling
+  - `test_layout_baseline.py` - Baseline alignment
+  - `test_layout_align_content.py` - Align content property
+  - `test_layout_absolute.py` - Absolute positioning
+  - `test_layout_measure.py` - Measure functions
+  - `test_layout_node.py` - LayoutNode class
+  - `test_layout_style.py` - FlexStyle dataclass
+  - `test_layout_types.py` - Type definitions
+  - `test_layout_reactive.py` - Reactive layout updates
 
 **Step 1: Run all layout tests**
 
@@ -226,9 +243,9 @@ Expected: All pass
 ### Task 8: RPC System Tests
 
 **Files:**
-- Test: `tests/test_rpc.py`
-- Test: `tests/test_rpc_endpoint.py`
-- Test: `tests/test_rpc_serialization.py`
+- Test: `tests/test_rpc.py` - Core RPC decorator and registry
+- Test: `tests/test_rpc_endpoint.py` - RPC endpoint handling
+- Test: `tests/test_rpc_serialization.py` - FlowJSONEncoder and serialization
 
 **Step 1: Run RPC tests**
 
@@ -273,18 +290,19 @@ Expected: All pass
 
 ---
 
-### Task 10: Build System Tests
+### Task 10: Build System and CLI Tests
 
 **Files:**
 - Test: `tests/test_ast_splitter.py`
 - Test: `tests/test_build_artifacts.py`
 - Test: `tests/test_cli.py`
 - Test: `tests/test_cli_build.py`
+- Test: `tests/test_dev_script.py`
 
 **Step 1: Run build system tests**
 
 ```bash
-uv run pytest tests/test_ast_splitter.py tests/test_build_artifacts.py tests/test_cli.py tests/test_cli_build.py -v
+uv run pytest tests/test_ast_splitter.py tests/test_build_artifacts.py tests/test_cli.py tests/test_cli_build.py tests/test_dev_script.py -v
 ```
 
 **Step 2: Verify AST transformation**
@@ -292,24 +310,26 @@ uv run pytest tests/test_ast_splitter.py tests/test_build_artifacts.py tests/tes
 Key behaviors:
 - Server code stripped from client bundles
 - `@rpc` functions replaced with fetch stubs
-- CLI commands work correctly
+- CLI commands (`dev`, `build`, `new`) work correctly
+- Dev script interactive features work
 
 Expected: All pass
 
 ---
 
-### Task 11: Compiler and Wasm Tests
+### Task 11: Compiler, Wasm, and Runtime Tests
 
 **Files:**
 - Test: `tests/test_compiler_importer.py`
 - Test: `tests/test_compiler_transformer.py`
 - Test: `tests/test_wasm_bootstrap.py`
 - Test: `tests/test_wasm_platform.py`
+- Test: `tests/test_runtime_registry.py`
 
-**Step 1: Run compiler tests**
+**Step 1: Run compiler and runtime tests**
 
 ```bash
-uv run pytest tests/test_compiler_*.py tests/test_wasm_*.py -v
+uv run pytest tests/test_compiler_*.py tests/test_wasm_*.py tests/test_runtime_registry.py -v
 ```
 
 **Step 2: Verify Zero-Build Development principle**
@@ -318,6 +338,7 @@ Key behaviors:
 - Import hook intercepts and transpiles
 - Platform detection (Pyodide, Emscripten, WASI)
 - Bootstrap entry point
+- Element registry for event routing
 
 Expected: All pass
 
@@ -571,7 +592,7 @@ uv run pytest --cov=src/flow --cov-fail-under=80 -v && uv run mypy src/ tests/ &
 **Step 2: Confirm all checks pass**
 
 Expected:
-- All 475 tests pass
+- All 487 tests pass
 - Coverage >= 80%
 - No type errors
 - No linting errors
@@ -582,7 +603,7 @@ Expected:
 ```
 POST-REFACTOR REVIEW COMPLETE
 =============================
-Tests: PASS (475/475)
+Tests: PASS (487/487)
 Coverage: XX%
 Type Check: PASS
 Lint: PASS
