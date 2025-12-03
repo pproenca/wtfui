@@ -1,0 +1,17 @@
+{
+  "name": "flow-static",
+  "version": "0.1.0",
+  "description": "FlowByte VM build system - bundles TypeScript VM to minimal JavaScript",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "esbuild src/flow/static/vm.ts --bundle --minify --format=esm --outfile=src/flow/static/dist/vm.min.js --target=es2020",
+    "build:dev": "esbuild src/flow/static/vm.ts --bundle --format=esm --outfile=src/flow/static/dist/vm.js --target=es2020 --sourcemap",
+    "watch": "esbuild src/flow/static/vm.ts --bundle --format=esm --outfile=src/flow/static/dist/vm.js --target=es2020 --sourcemap --watch",
+    "size": "npm run build && gzip -k -f src/flow/static/dist/vm.min.js && ls -la src/flow/static/dist/vm.min.js*"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.0",
+    "typescript": "^5.6.0"
+  }
+}

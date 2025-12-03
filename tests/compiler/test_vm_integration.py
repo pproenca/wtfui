@@ -14,7 +14,8 @@ from flow.compiler.opcodes import OpCode
 
 def test_vm_inline_generates_javascript():
     """VM inline function returns valid JavaScript class."""
-    js = _get_vm_inline()
+    # Use embedded VM (not bundled) for testing source structure
+    js = _get_vm_inline(use_bundled=False)
 
     # Verify it's a JavaScript class
     assert "class FlowVM" in js
@@ -25,7 +26,8 @@ def test_vm_inline_generates_javascript():
 
 def test_vm_has_stack_operations():
     """VM includes all stack operation handlers."""
-    js = _get_vm_inline()
+    # Use embedded VM (not bundled) for testing source structure
+    js = _get_vm_inline(use_bundled=False)
 
     # Stack operations
     assert "case 0xA0:" in js  # PUSH_NUM
@@ -38,7 +40,8 @@ def test_vm_has_stack_operations():
 
 def test_vm_has_arithmetic_operations():
     """VM includes stack-based arithmetic handlers."""
-    js = _get_vm_inline()
+    # Use embedded VM (not bundled) for testing source structure
+    js = _get_vm_inline(use_bundled=False)
 
     # Arithmetic operations
     assert "case 0x22:" in js  # MUL
@@ -50,7 +53,8 @@ def test_vm_has_arithmetic_operations():
 
 def test_vm_has_comparison_operations():
     """VM includes all comparison operator handlers."""
-    js = _get_vm_inline()
+    # Use embedded VM (not bundled) for testing source structure
+    js = _get_vm_inline(use_bundled=False)
 
     # Comparison operations
     assert "case 0x30:" in js  # EQ
@@ -63,7 +67,8 @@ def test_vm_has_comparison_operations():
 
 def test_vm_has_intrinsic_handler():
     """VM includes intrinsic call handler."""
-    js = _get_vm_inline()
+    # Use embedded VM (not bundled) for testing source structure
+    js = _get_vm_inline(use_bundled=False)
 
     assert "case 0xC0:" in js  # CALL_INTRINSIC
     assert "callIntrinsic" in js
@@ -74,6 +79,23 @@ def test_vm_has_intrinsic_handler():
     assert "case 0x03:" in js  # STR
     assert "case 0x04:" in js  # INT
     assert "case 0x05:" in js  # RANGE
+
+
+def test_vm_bundled_is_minified():
+    """Bundled VM is minified and smaller than embedded."""
+    embedded = _get_vm_inline(use_bundled=False)
+    bundled = _get_vm_inline(use_bundled=True)
+
+    # Bundled should be smaller if it exists
+    # If bundle doesn't exist, bundled == embedded (fallback)
+    assert len(bundled) <= len(embedded) or bundled == embedded
+
+    # If different, bundled should be minified (no readable class declaration)
+    if bundled != embedded:
+        # Minified version won't have nice formatting
+        assert "class FlowVM {" not in bundled
+        # But should still have FlowVM class (minified)
+        assert "FlowVM" in bundled
 
 
 def test_bytecode_format_has_magic_header():

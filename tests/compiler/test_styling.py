@@ -110,7 +110,8 @@ with Div():
 
 def test_vm_has_style_handlers():
     """VM includes style opcode handlers."""
-    js = _get_vm_inline()
+    # Use embedded VM (not bundled) for testing source structure
+    js = _get_vm_inline(use_bundled=False)
 
     # Check for style opcodes
     assert "case 0x66:" in js  # DOM_STYLE_STATIC
@@ -121,7 +122,8 @@ def test_vm_has_style_handlers():
 
 def test_vm_converts_kebab_to_camel():
     """VM converts kebab-case CSS properties to camelCase."""
-    js = _get_vm_inline()
+    # Use embedded VM (not bundled) for testing source structure
+    js = _get_vm_inline(use_bundled=False)
 
     # Check for kebab-to-camel conversion
     assert "replace(/-([a-z])/g" in js
@@ -129,7 +131,8 @@ def test_vm_converts_kebab_to_camel():
 
 def test_vm_handles_css_text():
     """VM handles cssText for dynamic styles."""
-    js = _get_vm_inline()
+    # Use embedded VM (not bundled) for testing source structure
+    js = _get_vm_inline(use_bundled=False)
 
     assert "cssText" in js
 

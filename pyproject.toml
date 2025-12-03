@@ -101,6 +101,10 @@ ignore = [
 "examples/**/*.py" = [
     "S101",   # assert ok in examples
 ]
+"build_static.py" = [
+    "S603",   # subprocess calls ok in build scripts (trusted tools)
+    "S607",   # partial executable paths ok for node/npm
+]
 
 [tool.ruff.lint.isort]
 known-first-party = ["flow"]

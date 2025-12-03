@@ -324,12 +324,23 @@ def _build_pyodide(source_code: str, module_name: str, output_path: Path, title:
     click.echo(f"   HTML shell: {index_file}")
 
 
-def _get_vm_inline() -> str:
+def _get_vm_inline(use_bundled: bool = True) -> str:
     """Return inline JavaScript for FlowByte VM.
 
     This is a stack-based virtual machine that executes FlowByte bytecode.
     All arithmetic and comparison operations use the stack.
+
+    Args:
+        use_bundled: If True, try to use the minified VM from build_static.py.
+                     Falls back to embedded VM if bundle doesn't exist.
     """
+    if use_bundled:
+        # Try to load bundled/minified VM
+        bundled_path = Path(__file__).parent.parent / "static" / "dist" / "vm.min.js"
+        if bundled_path.exists():
+            return bundled_path.read_text()
+
+    # Fallback: embedded VM (for development or when bundle doesn't exist)
     return """
 class FlowVM {
     signals = new Map();
