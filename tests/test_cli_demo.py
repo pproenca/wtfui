@@ -158,3 +158,28 @@ def test_layout_computes_positions():
     # Header should be at top
     header = root.children[0]
     assert header.layout.top == 0
+
+
+def test_render_layout_to_buffer():
+    """render_layout writes layout tree to ConsoleRenderer buffer."""
+    from flow.cli.demo import AppState, build_layout_tree, render_layout
+    from flow.layout.compute import compute_layout
+    from flow.layout.types import Size
+    from flow.renderer.console import ConsoleRenderer
+
+    state = AppState(width=80, height=24)
+    state.stats.cpu_percent = 45.0
+    state.stats.memory_used_gb = 8.0
+    state.stats.memory_total_gb = 16.0
+
+    root = build_layout_tree(state)
+    compute_layout(root, Size(80, 24))
+
+    renderer = ConsoleRenderer(width=80, height=24)
+    render_layout(renderer, root, state)
+
+    output = renderer.flush()
+
+    # Should contain dashboard elements
+    assert "System Monitor" in output
+    assert "CPU" in output

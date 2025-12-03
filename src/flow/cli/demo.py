@@ -14,11 +14,16 @@ from __future__ import annotations
 
 import sys
 from dataclasses import dataclass, field
+from datetime import datetime
 from enum import Enum, auto
+from typing import TYPE_CHECKING
 
 from flow.layout.node import LayoutNode
 from flow.layout.style import FlexDirection, FlexStyle, JustifyContent
 from flow.layout.types import Dimension
+
+if TYPE_CHECKING:
+    from flow.renderer.console import ConsoleRenderer
 
 # Check for psutil availability
 try:
@@ -304,6 +309,151 @@ def build_layout_tree(state: AppState) -> LayoutNode:
     root.add_child(footer)
 
     return root
+
+
+# ============================================================
+# STEP 5: Rendering
+# ============================================================
+
+
+def render_layout(
+    renderer: ConsoleRenderer,
+    root: LayoutNode,
+    state: AppState,
+) -> None:
+    """Render a computed layout tree to the console renderer.
+
+    Walks the layout tree and writes content to the renderer buffer
+    at the computed positions.
+
+    Args:
+        renderer: ConsoleRenderer with back buffer.
+        root: Root LayoutNode with computed layout positions.
+        state: Application state with data to render.
+    """
+    renderer.clear()
+
+    # Root has 3 children: header, main, footer
+    # Main has 2 children: sidebar, content
+    header = root.children[0]
+    main = root.children[1]
+    footer = root.children[2]
+    sidebar = main.children[0]
+    content = main.children[1]
+
+    # Render header
+    _render_header(renderer, header, state)
+
+    # Render sidebar with stats
+    _render_sidebar(renderer, sidebar, main, state)
+
+    # Render content with process list
+    _render_content(renderer, content, main, state)
+
+    # Render footer with command input
+    _render_footer(renderer, footer, state)
+
+
+def _render_header(
+    renderer: ConsoleRenderer,
+    header: LayoutNode,
+    state: AppState,
+) -> None:
+    """Render the header with title and clock."""
+    x = int(header.layout.left)
+    y = int(header.layout.top)
+    width = int(header.layout.width)
+
+    title = "System Monitor"
+    clock = datetime.now().strftime("%H:%M:%S")
+
+    # Title on left (bold, blue)
+    renderer.render_text_at(x, y, title, cls="text-blue-500 bold")
+
+    # Clock on right (dim)
+    clock_x = x + width - len(clock) - 1
+    renderer.render_text_at(clock_x, y, clock, cls="text-slate-400")
+
+
+def _render_sidebar(
+    renderer: ConsoleRenderer,
+    sidebar: LayoutNode,
+    main: LayoutNode,
+    state: AppState,
+) -> None:
+    """Render the stats sidebar."""
+    # Sidebar position relative to main
+    x = int(main.layout.left + sidebar.layout.left)
+    y = int(main.layout.top + sidebar.layout.top)
+
+    stats = state.stats
+
+    # Progress bar helper
+    def bar(used: float, total: float, bar_width: int = 10) -> str:
+        if total == 0:
+            return "░" * bar_width
+        ratio = min(used / total, 1.0)
+        filled = int(ratio * bar_width)
+        return "█" * filled + "░" * (bar_width - filled)
+
+    lines = [
+        (f"CPU  {stats.cpu_percent:5.1f}%", "text-green-400 bold"),
+        (f"[{bar(stats.cpu_percent, 100)}]", "text-green-500"),
+        ("", ""),
+        (f"MEM  {stats.memory_used_gb:.1f}/{stats.memory_total_gb:.1f}G", "text-cyan-400 bold"),
+        (f"[{bar(stats.memory_used_gb, stats.memory_total_gb)}]", "text-cyan-500"),
+        ("", ""),
+        (f"DISK {stats.disk_used_gb:.0f}/{stats.disk_total_gb:.0f}G", "text-yellow-400 bold"),
+        (f"[{bar(stats.disk_used_gb, stats.disk_total_gb)}]", "text-yellow-500"),
+    ]
+
+    for i, (text, cls) in enumerate(lines):
+        if text:
+            renderer.render_text_at(x, y + i, text, cls=cls)
+
+
+def _render_content(
+    renderer: ConsoleRenderer,
+    content: LayoutNode,
+    main: LayoutNode,
+    state: AppState,
+) -> None:
+    """Render the process list."""
+    x = int(main.layout.left + content.layout.left)
+    y = int(main.layout.top + content.layout.top)
+    height = int(content.layout.height)
+
+    # Header row
+    header_text = f"{'PID':<8}{'NAME':<20}{'CPU%':<8}{'MEM':<10}"
+    renderer.render_text_at(x, y, header_text, cls="text-white bold")
+
+    # Process rows
+    visible_count = height - 1  # Minus header
+    start = state.scroll_offset
+    end = start + visible_count
+    visible_procs = state.processes[start:end]
+
+    for i, proc in enumerate(visible_procs):
+        mem_str = (
+            f"{proc.memory_mb:.0f}MB" if proc.memory_mb < 1024 else f"{proc.memory_mb / 1024:.1f}GB"
+        )
+        line = f"{proc.pid:<8}{proc.name:<20}{proc.cpu_percent:<8.1f}{mem_str:<10}"
+        renderer.render_text_at(x, y + 1 + i, line)
+
+
+def _render_footer(
+    renderer: ConsoleRenderer,
+    footer: LayoutNode,
+    state: AppState,
+) -> None:
+    """Render the command input bar."""
+    x = int(footer.layout.left)
+    y = int(footer.layout.top)
+
+    cursor = "_" if state.focus == FocusArea.COMMAND else ""
+    prompt = f"> {state.command_input}{cursor}"
+
+    renderer.render_text_at(x, y, prompt, cls="text-green-300")
 
 
 def run_demo() -> None:
