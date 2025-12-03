@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 import threading
-from typing import TYPE_CHECKING, Any, Generic, TypeVar
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -12,10 +12,8 @@ if TYPE_CHECKING:
     from flow.computed import Computed
     from flow.effect import Effect
 
-T = TypeVar("T")
 
-
-class Signal(Generic[T]):
+class Signal[T]:
     """
     A thread-safe value that notifies subscribers when it changes.
 

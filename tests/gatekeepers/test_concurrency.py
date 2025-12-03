@@ -38,7 +38,7 @@ def has_gil_incompatible_deps() -> bool:
     free-threading and will force the GIL back on when imported.
     """
     try:
-        import greenlet  # type: ignore[import-not-found]  # noqa: F401
+        import greenlet  # type: ignore  # noqa: F401
 
         return True  # greenlet re-enables GIL
     except ImportError:

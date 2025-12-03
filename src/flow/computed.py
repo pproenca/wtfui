@@ -4,12 +4,10 @@
 from __future__ import annotations
 
 from contextvars import ContextVar
-from typing import TYPE_CHECKING, Any, Generic, TypeVar
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from collections.abc import Callable
-
-T = TypeVar("T")
 
 # Track which Computed is currently being evaluated (for signal tracking)
 _evaluating_computed: ContextVar[Computed[Any] | None] = ContextVar(
@@ -22,7 +20,7 @@ def get_evaluating_computed() -> Computed[Any] | None:
     return _evaluating_computed.get()
 
 
-class Computed(Generic[T]):
+class Computed[T]:
     """
     A memoized computed value that tracks Signal dependencies.
 
