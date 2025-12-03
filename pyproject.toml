@@ -105,6 +105,10 @@ ignore = [
     "S603",   # subprocess calls ok in build scripts (trusted tools)
     "S607",   # partial executable paths ok for node/npm
 ]
+"src/flow/cli/__init__.py" = [
+    "S603",   # subprocess calls ok for VM build (trusted tools)
+    "S607",   # partial executable paths ok for node/npm
+]
 
 [tool.ruff.lint.isort]
 known-first-party = ["flow"]

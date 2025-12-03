@@ -69,6 +69,73 @@ def dev(app_path: str, host: str, port: int, reload: bool) -> None:
         sys.exit(1)
 
 
+def _build_vm_bundle() -> bool:
+    """Build the minified VM bundle using esbuild.
+
+    Returns:
+        True if build succeeded, False otherwise.
+    """
+    import subprocess
+
+    # Find project root (where package.json is)
+    project_root = Path(__file__).parent.parent.parent.parent
+
+    # Check if Node.js is installed
+    try:
+        result = subprocess.run(
+            ["node", "--version"],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=30,
+        )
+        if result.returncode != 0:
+            click.echo("   Warning: Node.js not found, using embedded VM fallback")
+            return False
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        click.echo("   Warning: Node.js not found, using embedded VM fallback")
+        return False
+
+    # Install npm dependencies if needed
+    node_modules = project_root / "node_modules"
+    if not node_modules.exists() or not (node_modules / "esbuild").exists():
+        click.echo("   Installing npm dependencies...")
+        result = subprocess.run(
+            ["npm", "install"],
+            cwd=project_root,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=120,
+        )
+        if result.returncode != 0:
+            click.echo(f"   Warning: npm install failed: {result.stderr}")
+            return False
+
+    # Build the VM
+    click.echo("   Building VM bundle...")
+    result = subprocess.run(
+        ["npm", "run", "build"],
+        cwd=project_root,
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=60,
+    )
+
+    if result.returncode != 0:
+        click.echo(f"   Warning: VM build failed: {result.stderr}")
+        return False
+
+    # Report success with size
+    bundle_path = project_root / "src" / "flow" / "static" / "dist" / "vm.min.js"
+    if bundle_path.exists():
+        size_kb = bundle_path.stat().st_size / 1024
+        click.echo(f"   VM bundle: {size_kb:.1f} KB")
+
+    return True
+
+
 @cli.command()
 @click.argument("app_path", type=str, required=False, default="app:app")
 @click.option("--output", "-o", default="dist", help="Output directory")
@@ -91,8 +158,19 @@ def dev(app_path: str, host: str, port: int, reload: bool) -> None:
     default=4,
     help="Number of parallel workers (default: 4)",
 )
+@click.option(
+    "--skip-vm-build",
+    is_flag=True,
+    help="Skip building the VM (use existing bundle)",
+)
 def build(
-    app_path: str, output: str, title: str, format: str, parallel: bool, workers: int
+    app_path: str,
+    output: str,
+    title: str,
+    format: str,
+    parallel: bool,
+    workers: int,
+    skip_vm_build: bool,
 ) -> None:
     """Build the app for production.
 
@@ -103,6 +181,10 @@ def build(
     click.echo(f"   Format: {format}")
     if parallel:
         click.echo(f"   Parallel: {workers} workers")
+
+    # Build VM bundle if using flowbyte format and not skipped
+    if format == "flowbyte" and not skip_vm_build:
+        _build_vm_bundle()
 
     # Parse app path
     try:
