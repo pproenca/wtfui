@@ -11,6 +11,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+demo = ["psutil>=5.9", "types-psutil>=5.9"]
 dev = [
     "pytest>=8.0.0",
     "pytest-asyncio>=0.23.0",
@@ -151,6 +152,7 @@ module = [
     "playwright.*",
     "pytest_playwright.*",
     "httpx.*",
+    "psutil.*",
 ]
 ignore_missing_imports = true
 
@@ -159,6 +161,7 @@ module = "tests.*"
 # Slightly relaxed for tests
 disallow_untyped_defs = false
 disallow_incomplete_defs = false
+disable_error_code = ["comparison-overlap"]
 
 # ============================================================================
 # Bandit Configuration (Security)

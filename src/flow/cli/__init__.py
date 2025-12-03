@@ -1,4 +1,4 @@
-# src/flow/cli.py
+# src/flow/cli/__init__.py
 """Flow CLI - Command-line interface for development and deployment."""
 
 from __future__ import annotations
@@ -7,6 +7,8 @@ import sys
 from pathlib import Path
 
 import click
+
+from flow.cli import demo
 
 
 @click.group()
@@ -205,6 +207,28 @@ flow build
     click.echo("\nNext steps:")
     click.echo(f"  cd {name}")
     click.echo("  flow dev")
+
+
+@cli.command()
+@click.argument("target", type=str, default="console")
+def demo_cmd(target: str) -> None:
+    """Run interactive demos.
+
+    TARGET: Demo to run (default: console)
+
+    Available demos:
+      console - System monitor dashboard demonstrating ConsoleRenderer
+    """
+    if target == "console":
+        demo.run_demo()
+    else:
+        click.echo(f"Unknown demo: {target}", err=True)
+        click.echo("Available: console")
+        sys.exit(1)
+
+
+# Register command with name 'demo' (avoiding conflict with imported module)
+cli.add_command(demo_cmd, name="demo")
 
 
 def _build_flowbyte(source_code: str, module_name: str, output_path: Path, title: str) -> None:
