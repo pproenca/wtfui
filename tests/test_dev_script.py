@@ -37,7 +37,7 @@ def test_dev_script_help(dev_script: Path):
     assert result.returncode == 0
     assert "Usage:" in result.stdout
     assert "setup" in result.stdout
-    assert "start" in result.stdout
+    assert "dev" in result.stdout  # dev script now uses 'dev' instead of 'start'
     assert "test" in result.stdout
 
 
@@ -158,14 +158,14 @@ def root():
             proc.wait(timeout=5)
 
     def test_dev_start_serves_todo_app(self, dev_script: Path, project_root: Path):
-        """./dev start with explicit app path serves the Todo app.
+        """./dev dev with explicit app path serves the Todo app.
 
         Note: Tests explicit path, not default, since ./dev default may vary.
         """
-        # Note: dev script uses hardcoded port 8000, not configurable via CLI
+        # Note: dev script delegates to 'uv run flow dev' with default port 8000
         # Use explicit path to avoid default path issues
         proc = subprocess.Popen(
-            [str(dev_script), "start", "examples.todo.app:app"],
+            [str(dev_script), "dev", "examples.todo.app:app"],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             cwd=project_root,
