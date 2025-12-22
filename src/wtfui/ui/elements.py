@@ -106,16 +106,31 @@ class Input(Element):
         bind: Signal[str] | None = None,
         placeholder: str = "",
         on_change: Callable[[str], Any] | None = None,
+        on_input: Callable[[str], Any] | None = None,
         **props: Any,
     ) -> None:
         props.setdefault("focusable", True)
 
         props["on_keydown"] = self.handle_keydown
+        # Wrap on_input to update text_value first, then call user's handler
+        props["on_input"] = self._make_input_handler(on_input)
         super().__init__(placeholder=placeholder, on_change=on_change, **props)
         self.bind = bind
 
         self._text_value = bind.value if bind is not None else ""
         self.cursor_pos = len(self._text_value)
+
+    def _make_input_handler(
+        self, user_handler: Callable[[str], Any] | None
+    ) -> Callable[[str], None]:
+        """Create an input handler that updates text_value and calls user handler."""
+
+        def handler(value: str) -> None:
+            self.text_value = value
+            if user_handler is not None:
+                user_handler(value)
+
+        return handler
 
     @property
     def text_value(self) -> str:

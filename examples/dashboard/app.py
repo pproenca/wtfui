@@ -42,7 +42,10 @@ def _sales_trend() -> float:
     data = _sales_data.value
     if len(data) < 2:
         return 0.0
-    return ((data[-1] - data[-2]) / data[-2]) * 100
+    previous = data[-2]
+    if previous == 0:
+        return 0.0
+    return ((data[-1] - previous) / previous) * 100
 
 
 # Navigation state

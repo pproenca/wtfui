@@ -89,3 +89,84 @@ async def test_session_queues_update_after_handler():
     await session._handle_event(event_data)
 
     assert count.value == 1
+
+
+@pytest.mark.asyncio
+async def test_session_passes_value_to_input_handler():
+    """LiveSession passes value from input events to handlers."""
+    from wtfui.ui import Input
+
+    received_values = []
+
+    def on_input(value: str) -> None:
+        received_values.append(value)
+
+    with Div() as root:
+        inp = Input(on_input=on_input)
+
+    mock_ws = AsyncMock()
+    session = LiveSession(root, mock_ws)
+
+    # Simulate browser sending input event with value
+    event_data = {
+        "type": "input",
+        "target_id": f"wtfui-{id(inp)}",
+        "value": "hello",
+    }
+
+    await session._handle_event(event_data)
+
+    assert received_values == ["hello"]
+
+
+@pytest.mark.asyncio
+async def test_session_passes_value_to_change_handler():
+    """LiveSession passes value from change events to handlers."""
+    from wtfui.ui import Input
+
+    received_values = []
+
+    def on_change(value: str) -> None:
+        received_values.append(value)
+
+    with Div() as root:
+        inp = Input(on_change=on_change)
+
+    mock_ws = AsyncMock()
+    session = LiveSession(root, mock_ws)
+
+    # Simulate browser sending change event with value
+    event_data = {
+        "type": "change",
+        "target_id": f"wtfui-{id(inp)}",
+        "value": "world",
+    }
+
+    await session._handle_event(event_data)
+
+    assert received_values == ["world"]
+
+
+@pytest.mark.asyncio
+async def test_session_input_updates_bound_signal():
+    """Input events update bound signal via on_input handler."""
+    from wtfui.ui import Input
+
+    bound_value = Signal("initial")
+
+    with Div() as root:
+        inp = Input(bind=bound_value)
+
+    mock_ws = AsyncMock()
+    session = LiveSession(root, mock_ws)
+
+    # Simulate browser sending input event
+    event_data = {
+        "type": "input",
+        "target_id": f"wtfui-{id(inp)}",
+        "value": "updated",
+    }
+
+    await session._handle_event(event_data)
+
+    assert bound_value.value == "updated"

@@ -67,3 +67,48 @@ async def test_metric_card_type_union():
     assert "MetricValue" in annotation_str or (
         "Signal" in annotation_str and "Computed" in annotation_str
     )
+
+
+def test_sales_trend_handles_zero_values():
+    """Sales trend should not crash with zero values (division by zero)."""
+    import app
+
+    # Set sales data to all zeros (simulates multiplier of 0%)
+    app._sales_data.value = [0, 0, 0, 0, 0, 0, 0]
+
+    # This should not raise ZeroDivisionError
+    result = app._sales_trend()
+
+    # Should return 0.0 when previous value is 0
+    assert result == 0.0
+
+
+def test_sales_trend_normal_calculation():
+    """Sales trend calculates week-over-week change correctly."""
+    import app
+
+    # Set sales data with known values
+    app._sales_data.value = [100, 100, 100, 100, 100, 100, 120]
+
+    result = app._sales_trend()
+
+    # (120 - 100) / 100 * 100 = 20%
+    assert result == 20.0
+
+
+def test_update_multiplier_with_zero():
+    """Update multiplier with 0 should not crash."""
+    import app
+
+    # Reset to baseline first
+    app._sales_data.value = [120, 150, 180, 200, 175, 220, 250]
+
+    # This should not raise
+    app.update_multiplier("0")
+
+    # All values should be 0
+    assert app._sales_data.value == [0, 0, 0, 0, 0, 0, 0]
+
+    # And sales_trend should not crash
+    result = app._sales_trend()
+    assert result == 0.0

@@ -41,6 +41,17 @@ socket.onerror = (e) => {
 socket.onmessage = (event) => {
     const patch = JSON.parse(event.data);
     console.log('[wtfui] Received patch:', patch);
+
+    // Preserve focus and selection state for inputs BEFORE any DOM changes
+    const activeEl = document.activeElement;
+    const wasInput = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA');
+    const selectionStart = wasInput ? activeEl.selectionStart : null;
+    const selectionEnd = wasInput ? activeEl.selectionEnd : null;
+    // Use placeholder as stable identifier to find input after re-render
+    const inputSelector = wasInput && activeEl.placeholder
+        ? `input[placeholder="${activeEl.placeholder}"]`
+        : (wasInput ? 'input' : null);
+
     if (patch.op === 'replace') {
         const el = document.getElementById(patch.target_id);
         if (el) {
@@ -52,6 +63,22 @@ socket.onmessage = (event) => {
         const root = document.getElementById('wtfui-root');
         if (root) {
             root.innerHTML = patch.html;
+        }
+    }
+
+    // Restore focus using stable selector (element IDs change on re-render)
+    if (inputSelector) {
+        const newInput = document.querySelector(inputSelector);
+        if (newInput) {
+            newInput.focus();
+            // Restore cursor position
+            if (selectionStart !== null) {
+                try {
+                    newInput.setSelectionRange(selectionStart, selectionEnd);
+                } catch (e) {
+                    // Some input types don't support setSelectionRange
+                }
+            }
         }
     }
 };
