@@ -15,7 +15,7 @@ class HTMLRenderer(Renderer):
         "VStack": "div",
         "HStack": "div",
         "Card": "div",
-        "Text": "div",  # Block-level for proper vertical stacking
+        "Text": "span",  # Inline element - use Flex/Box containers for vertical stacking
         "Button": "button",
         "Input": "input",
         "Window": "div",

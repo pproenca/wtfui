@@ -260,10 +260,10 @@ def test_box_defaults_to_flex_column():
     assert "flex-direction: column" in html, f"flex-direction: column not found: {html}"
 
 
-def test_text_renders_as_block():
-    """Text elements should render as div (block) not span (inline).
+def test_text_renders_as_inline_span():
+    """Text elements should render as span (inline).
 
-    Regression test: Text as span causes multiple texts to appear on same line.
+    To stack Text elements vertically, wrap them in Flex(direction='column').
     """
     renderer = HTMLRenderer()
     node = RenderNode(
@@ -276,6 +276,5 @@ def test_text_renders_as_block():
 
     html = renderer.render_node(node)
 
-    # Should be a div, not span
-    assert html.startswith("<div"), f"Expected div tag: {html}"
-    assert not html.startswith("<span"), f"Should not be span: {html}"
+    # Should be a span for inline semantics
+    assert html.startswith("<span"), f"Expected span tag: {html}"

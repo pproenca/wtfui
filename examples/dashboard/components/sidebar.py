@@ -50,7 +50,7 @@ async def Sidebar(
                 Text("Dashboard", style=Style(font_size="lg", font_weight="bold"))
 
             # Navigation section
-            with Box(padding=12):
+            with Flex(direction="column", gap=8, padding=12):
                 Text(
                     "NAVIGATION",
                     style=Style(font_size="sm", color=Colors.Slate._500, font_weight="bold"),

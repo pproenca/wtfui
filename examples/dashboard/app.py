@@ -116,7 +116,7 @@ async def Dashboard() -> Element:
                 style=Style(bg="white"),
             ):
                 # Page title section
-                with Box():
+                with Flex(direction="column", gap=4):
                     Text(
                         _selected_page.value,
                         style=Style(
@@ -131,7 +131,7 @@ async def Dashboard() -> Element:
                     )
 
                 # Metrics section
-                with Box():
+                with Flex(direction="column", gap=12):
                     Text(
                         "Key Metrics",
                         style=Style(
@@ -173,7 +173,7 @@ async def Dashboard() -> Element:
                     ),
                 ):
                     with Flex(direction="column", gap=16):
-                        with Box():
+                        with Flex(direction="column", gap=4):
                             Text(
                                 "Adjust Sales Multiplier",
                                 style=Style(
