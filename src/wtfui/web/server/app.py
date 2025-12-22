@@ -213,11 +213,26 @@ def create_app(
                             await websocket.send_json({"op": "update_root", "html": html})
 
                     case "input":
+                        # Live updates on every keystroke (same as "change" but for real-time)
                         element = state.registry.get(element_id)
+                        value = data.get("value", "")
+
                         if element:
                             bind = getattr(element, "bind", None)
                             if bind is not None:
-                                bind.value = data.get("value", "")
+                                bind.value = value
+
+                        # Call on_change handler and re-render for live reactivity
+                        handler = state.registry.get_handler(element_id, "change")
+                        if handler:
+                            if inspect.iscoroutinefunction(handler):
+                                await handler(value)
+                            else:
+                                handler(value)
+
+                            root = await _re_render_root()
+                            html = state.renderer.render(root)
+                            await websocket.send_json({"op": "update_root", "html": html})
 
                     case "change":
                         element = state.registry.get(element_id)
