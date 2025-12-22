@@ -1,0 +1,54 @@
+# .github/workflows/e2e-tests.yml
+name: MyFuse E2E Tests
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  e2e-tests:
+    name: End-to-End Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+
+      - name: Set up Python 3.14t (Free-Threaded) for Server
+        run: uv python install 3.14t
+
+      - name: Install server dependencies (NO greenlet!)
+        run: uv sync --extra dev --extra demo
+
+      - name: Verify server environment is clean
+        run: |
+          if uv run python -c "import greenlet" 2>/dev/null; then
+            echo "ERROR: Server environment contaminated with greenlet!"
+            exit 1
+          fi
+          echo "Server environment is greenlet-free"
+
+      - name: Set up Python 3.12 for E2E driver
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install E2E test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pytest pytest-playwright playwright
+
+      - name: Install Playwright browsers
+        run: playwright install chromium --with-deps
+
+      - name: Run E2E tests
+        run: |
+          # E2E tests spawn server via 'uv run' (uses clean 3.14t env)
+          # Test driver uses system Python 3.12 with Playwright
+          PYTHONPATH="$PWD/src:$PWD" pytest tests/e2e/ -v --tb=short

@@ -1,0 +1,71 @@
+# .github/workflows/gatekeeper-audit.yml
+name: MyFuse Gatekeeper Audit
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  gatekeeper-audit:
+    name: Performance & Security Audit
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+
+      - name: Set up Python 3.14t (Free-Threaded)
+        run: uv python install 3.14t
+
+      - name: Install dependencies (NO e2e extra!)
+        run: uv sync --extra dev --extra demo
+        # NOTE: We exclude --extra e2e because it installs greenlet (via playwright)
+        # which re-enables the GIL in Python 3.14t, invalidating all concurrency tests.
+
+      - name: Run Gatekeeper Tests
+        run: |
+          uv run pytest tests/gatekeepers/ \
+            -v \
+            --benchmark-json=benchmark-results.json \
+            --benchmark-autosave \
+            -m gatekeeper
+
+      - name: Upload Benchmark Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: benchmark-results
+          path: benchmark-results.json
+          if-no-files-found: warn
+
+      - name: Save Benchmark History
+        if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+        run: |
+          mkdir -p .benchmarks
+          cp benchmark-results.json .benchmarks/benchmark-$(date +%Y%m%d-%H%M%S).json
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .benchmarks/
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "chore(bench): save benchmark history [skip ci]"
+            git push || { echo "Git push failed"; exit 1; }
+          fi
+
+      - name: Check Benchmark Regression
+        uses: benchmark-action/github-action-benchmark@v1
+        if: github.event_name == 'pull_request'
+        with:
+          tool: 'pytest'
+          output-file-path: benchmark-results.json
+          fail-on-alert: true
+          alert-threshold: '120%'
+          comment-on-alert: true
+          github-token: ${{ secrets.GITHUB_TOKEN }}
