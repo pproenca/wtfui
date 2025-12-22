@@ -1,0 +1,23 @@
+[project]
+name = "wtfui-example-dashboard"
+version = "0.1.0"
+description = "Dashboard example for WtfUI framework - demonstrates Computed values and Flex layout"
+requires-python = ">=3.14"
+dependencies = ["wtfui>=0.1.0"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0.0", "pytest-asyncio>=0.23.0"]
+
+[tool.wtfui]
+name = "dashboard"
+entry = "app.py"
+export = "app"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
