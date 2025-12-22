@@ -67,31 +67,33 @@ async def Header() -> Element:
     """Art Deco luxury header with gold accents on dark background."""
     with Flex(
         direction="row",
-        cls=("h-16 px-6 items-center justify-between bg-slate-950 border-b border-slate-800"),
+        align="center",
+        justify="space-between",
+        height=64,
+        padding=(0, 24),
+        cls="bg-slate-950 border-b border-slate-800",
     ) as header:
         # Brand area with geometric logo
-        with Flex(direction="row", cls="items-center gap-3"):
+        with Flex(direction="row", align="center", gap=12):
             # Geometric Art Deco logo
             with Flex(
                 direction="row",
-                cls=(
-                    "w-8 h-8 bg-gradient-to-br from-amber-400 to-amber-600 "
-                    "items-center justify-center"
-                ),
+                align="center",
+                justify="center",
+                width=32,
+                height=32,
+                cls="bg-gradient-to-br from-amber-400 to-amber-600",
             ):
-                with Flex(direction="row"):
-                    Text("F", cls="text-slate-950 font-black text-sm")
-            with Flex(direction="row"):
-                Text("FLOW", cls="text-slate-100 font-bold tracking-widest")
+                Text("F", cls="text-slate-950 font-black text-sm")
+            Text("FLOW", cls="text-slate-100 font-bold tracking-widest")
 
         # Current page indicator with geometric accent
-        with Flex(direction="row", cls="items-center gap-3"):
-            Flex(direction="row", cls="w-1 h-4 bg-amber-500")
-            with Flex(direction="row"):
-                Text(
-                    _selected_page.value.upper(),
-                    cls="text-amber-400 text-sm font-bold tracking-widest",
-                )
+        with Flex(direction="row", align="center", gap=12):
+            Flex(direction="row", width=4, height=16, cls="bg-amber-500")
+            Text(
+                _selected_page.value.upper(),
+                cls="text-amber-400 text-sm font-bold tracking-widest",
+            )
 
     return header
 
@@ -99,54 +101,52 @@ async def Header() -> Element:
 @component
 async def Dashboard() -> Element:
     """Art Deco luxury dashboard with dark theme and gold accents."""
-    with Flex(direction="column", cls="h-screen bg-slate-950") as app:
+    with Flex(direction="column", height="100vh", cls="bg-slate-950") as app:
         # Header - fixed height
         await Header()
 
         # Body - fills remaining space
-        with Flex(direction="row", cls="flex-1 overflow-hidden"):
+        with Flex(direction="row", flex_grow=1, cls="overflow-hidden"):
             # Sidebar - fixed width
             await Sidebar(items=_NAV_ITEMS, selected=_selected_page)
 
             # Main content - dark gradient background
             with Flex(
                 direction="column",
-                cls=(
-                    "flex-1 p-8 gap-8 overflow-auto "
-                    "bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950"
-                ),
+                flex_grow=1,
+                padding=32,
+                gap=32,
+                cls="overflow-auto bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950",
             ):
                 # Page title section with Art Deco styling
-                with Flex(direction="column", cls="space-y-2"):
-                    with Flex(direction="row", cls="items-center gap-4"):
-                        # Geometric accent
-                        Flex(
-                            direction="row",
-                            cls="w-1 h-8 bg-gradient-to-b from-amber-400 to-amber-600",
+                with Flex(direction="row", align="center", gap=16):
+                    # Geometric accent
+                    Flex(
+                        direction="row",
+                        width=4,
+                        height=32,
+                        cls="bg-gradient-to-b from-amber-400 to-amber-600",
+                    )
+                    with Flex(direction="column", gap=4):
+                        Text(
+                            _selected_page.value.upper(),
+                            cls="text-2xl font-bold text-slate-100 tracking-tight",
                         )
-                        with Flex(direction="column"):
-                            with Flex(direction="row"):
-                                Text(
-                                    _selected_page.value.upper(),
-                                    cls="text-2xl font-bold text-slate-100 tracking-tight",
-                                )
-                            with Flex(direction="row"):
-                                Text(
-                                    "Monitor your key metrics and performance indicators",
-                                    cls="text-sm text-slate-500",
-                                )
+                        Text(
+                            "Monitor your key metrics and performance indicators",
+                            cls="text-sm text-slate-500",
+                        )
 
                 # Metrics section
-                with Flex(direction="column", cls="space-y-4"):
-                    with Flex(direction="row", cls="items-center gap-2"):
-                        Flex(direction="row", cls="w-2 h-2 bg-amber-500")
-                        with Flex(direction="row"):
-                            Text(
-                                "KEY METRICS",
-                                cls="text-xs font-bold tracking-widest text-amber-500/70",
-                            )
+                with Flex(direction="column", gap=16):
+                    with Flex(direction="row", align="center", gap=8):
+                        Flex(direction="row", width=8, height=8, cls="bg-amber-500")
+                        Text(
+                            "KEY METRICS",
+                            cls="text-xs font-bold tracking-widest text-amber-500/70",
+                        )
 
-                    with Flex(direction="row", cls="gap-5 flex-wrap"):
+                    with Flex(direction="row", gap=20, wrap="wrap"):
                         await MetricCard(
                             title="Total Sales",
                             value=_total_sales,
@@ -171,26 +171,26 @@ async def Dashboard() -> Element:
                 # Interactive section with Art Deco styling
                 with Flex(
                     direction="column",
-                    cls=("p-6 bg-slate-800/30 border border-slate-700 rounded-lg space-y-5"),
+                    padding=24,
+                    gap=20,
+                    cls="bg-slate-800/30 border border-slate-700 rounded-lg",
                 ):
                     # Gold accent bar
-                    with Flex(direction="row", cls="h-px w-full mb-2"):
-                        Flex(direction="row", cls="h-full w-24 bg-amber-500")
-                        Flex(direction="row", cls="h-full flex-1 bg-slate-700")
+                    with Flex(direction="row", height=1, cls="mb-2"):
+                        Flex(direction="row", width=96, height=1, cls="bg-amber-500")
+                        Flex(direction="row", flex_grow=1, height=1, cls="bg-slate-700")
 
-                    with Flex(direction="column", cls="space-y-1"):
-                        with Flex(direction="row"):
-                            Text(
-                                "ADJUST MULTIPLIER",
-                                cls="text-xs font-bold tracking-widest text-amber-500",
-                            )
-                        with Flex(direction="row"):
-                            Text(
-                                "Modify the baseline sales data to simulate different scenarios",
-                                cls="text-sm text-slate-400",
-                            )
+                    with Flex(direction="column", gap=4):
+                        Text(
+                            "ADJUST MULTIPLIER",
+                            cls="text-xs font-bold tracking-widest text-amber-500",
+                        )
+                        Text(
+                            "Modify the baseline sales data to simulate different scenarios",
+                            cls="text-sm text-slate-400",
+                        )
 
-                    with Flex(direction="row", cls="gap-4 items-center"):
+                    with Flex(direction="row", gap=16, align="center"):
                         Input(
                             bind=_multiplier_input,
                             placeholder="100",
@@ -202,8 +202,7 @@ async def Dashboard() -> Element:
                                 "transition-colors"
                             ),
                         )
-                        with Flex(direction="row"):
-                            Text("% of baseline", cls="text-sm text-slate-500")
+                        Text("% of baseline", cls="text-sm text-slate-500")
 
     return app
 

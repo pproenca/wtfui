@@ -33,35 +33,20 @@ async def Sidebar(
     """
     with Flex(
         direction="column",
-        cls="w-60 min-h-screen bg-slate-950 border-r border-slate-800",
+        width=200,
+        flex_shrink=0,
+        cls="bg-slate-950 border-r border-slate-800",
     ) as sidebar:
-        # Brand section with geometric accent
-        with Flex(direction="column", cls="p-5 border-b border-slate-800"):
-            with Flex(direction="row", cls="items-center gap-3"):
-                # Geometric logo mark
-                with Flex(
-                    direction="row",
-                    cls=(
-                        "w-8 h-8 bg-gradient-to-br from-amber-400 to-amber-600 "
-                        "items-center justify-center"
-                    ),
-                ):
-                    with Flex(direction="row"):
-                        Text("D", cls="text-slate-950 font-black text-sm")
-                with Flex(direction="row"):
-                    Text("DASHBOARD", cls="text-slate-100 font-bold tracking-widest text-sm")
-
-        # Decorative geometric line
-        with Flex(direction="row", cls="h-px w-full"):
-            Flex(direction="row", cls="h-full w-1/4 bg-amber-500")
-            Flex(direction="row", cls="h-full w-3/4 bg-slate-800")
+        # Decorative geometric line at top
+        with Flex(direction="row", height=1):
+            Flex(direction="row", width="30%", height=1, cls="bg-amber-500")
+            Flex(direction="row", flex_grow=1, height=1, cls="bg-slate-800")
 
         # Navigation section
-        with Flex(direction="column", cls="p-4 space-y-4"):
-            with Flex(direction="row"):
-                Text("NAVIGATION", cls="text-amber-500/70 text-xs font-bold tracking-widest")
+        with Flex(direction="column", padding=16, gap=12, flex_grow=1):
+            Text("NAVIGATION", cls="text-amber-500/70 text-xs font-bold tracking-widest")
 
-            with Flex(direction="column", cls="space-y-1"):
+            with Flex(direction="column", gap=2):
                 for item in items:
                     is_active = selected.value == item
 
@@ -82,18 +67,16 @@ async def Sidebar(
                             "transition-all duration-200"
                         )
 
-                    with Flex(direction="row"):
-                        Button(
-                            label=item,
-                            on_click=_make_click_handler(selected, item),
-                            cls=btn_cls,
-                        )
+                    Button(
+                        label=item,
+                        on_click=_make_click_handler(selected, item),
+                        cls=btn_cls,
+                    )
 
         # Bottom decorative element
-        with Flex(direction="column", cls="mt-auto p-4 border-t border-slate-800"):
-            with Flex(direction="row", cls="items-center gap-2"):
-                Flex(direction="row", cls="w-2 h-2 bg-amber-500")
-                with Flex(direction="row"):
-                    Text("Premium Analytics", cls="text-slate-600 text-xs tracking-wide")
+        with Flex(direction="row", padding=16, cls="border-t border-slate-800"):
+            with Flex(direction="row", align="center", gap=8):
+                Flex(direction="row", width=6, height=6, cls="bg-amber-500")
+                Text("Premium", cls="text-slate-600 text-xs tracking-wide")
 
     return sidebar

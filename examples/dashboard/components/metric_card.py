@@ -59,10 +59,14 @@ async def MetricCard(
     """
     display_value = resolve_metric_value(value)
 
+    # Responsive card: grows to fill space, min 200px, max 280px
     with Flex(
         direction="column",
+        flex_grow=1,
+        flex_shrink=1,
         cls=(
-            "w-60 bg-slate-800/50 backdrop-blur border border-slate-700 "
+            "min-w-[200px] max-w-[280px] "
+            "bg-slate-800/50 backdrop-blur border border-slate-700 "
             "rounded-lg overflow-hidden "
             "hover:border-amber-500/50 transition-all duration-300"
         ),
@@ -70,33 +74,30 @@ async def MetricCard(
         # Gold accent bar at top (geometric Art Deco element)
         Flex(
             direction="row",
-            cls="h-1 w-full bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600",
+            height=4,
+            cls="bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600",
         )
 
         # Card content
-        with Flex(direction="column", cls="p-5 space-y-3"):
+        with Flex(direction="column", padding=20, gap=12):
             # Title
-            with Flex(direction="row"):
-                Text(
-                    title.upper(),
-                    cls="text-xs font-bold tracking-widest text-amber-500/70",
-                )
+            Text(
+                title.upper(),
+                cls="text-xs font-bold tracking-widest text-amber-500/70",
+            )
 
             # Value display
-            with Flex(direction="row", cls="items-baseline gap-1"):
+            with Flex(direction="row", align="baseline", gap=4):
                 if unit and not unit.endswith("%"):
-                    with Flex(direction="row"):
-                        Text(unit, cls="text-xl font-bold text-slate-500")
+                    Text(unit, cls="text-xl font-bold text-slate-500")
                 formatted = (
                     f"{display_value:,.0f}"
                     if isinstance(display_value, float)
                     else str(display_value)
                 )
-                with Flex(direction="row"):
-                    Text(formatted, cls="text-3xl font-bold text-slate-100 tabular-nums")
+                Text(formatted, cls="text-3xl font-bold text-slate-100 tabular-nums")
                 if unit and unit.endswith("%"):
-                    with Flex(direction="row"):
-                        Text(unit, cls="text-xl font-bold text-slate-500")
+                    Text(unit, cls="text-xl font-bold text-slate-500")
 
             # Change indicator
             if change is not None:
@@ -111,14 +112,15 @@ async def MetricCard(
 
                 with Flex(
                     direction="row",
-                    cls="pt-3 mt-2 border-t border-slate-700/50 items-center gap-3",
+                    align="center",
+                    gap=12,
+                    cls="pt-3 mt-2 border-t border-slate-700/50",
                 ):
-                    with Flex(direction="row", cls=f"px-2 py-1 rounded {change_cls}"):
+                    with Flex(direction="row", padding=(4, 8), cls=f"rounded {change_cls}"):
                         Text(
                             f"{arrow} {abs(change):.1f}%",
                             cls="text-xs font-bold",
                         )
-                    with Flex(direction="row"):
-                        Text("vs last period", cls="text-xs text-slate-500")
+                    Text("vs last period", cls="text-xs text-slate-500")
 
     return card
