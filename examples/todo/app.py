@@ -17,7 +17,6 @@ from uuid import uuid4
 from storage import LocalStorage
 
 from wtfui import Effect, Element, Signal, component
-from wtfui.core.style import Colors, Style
 from wtfui.ui import Button, Flex, Input, Text
 from wtfui.web.server import create_app
 
@@ -102,22 +101,31 @@ async def TodoItem(todo: Todo) -> Element:
     # Capture todo.id by value using default argument to avoid closure issues
     todo_id = todo.id
 
-    with Flex(direction="row", gap=8, align="center") as item:
+    item_cls = (
+        "flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+    )
+    if todo.completed:
+        item_cls += " opacity-60"
+
+    check_cls = "w-8 h-8 flex items-center justify-center rounded-full border-2 transition-colors"
+    if todo.completed:
+        check_cls += " bg-green-500 border-green-500 text-white"
+    else:
+        check_cls += " border-gray-300 text-gray-400 hover:border-green-400"
+
+    text_cls = "flex-1 line-through text-gray-400" if todo.completed else "flex-1 text-gray-700"
+
+    with Flex(direction="row", cls=item_cls) as item:
         Button(
             label="✓" if todo.completed else "○",
             on_click=lambda tid=todo_id: toggle_todo(tid),  # type: ignore[misc]
+            cls=check_cls,
         )
-        Text(
-            todo.text,
-            style=Style(text_decoration="line-through", color=Colors.Slate._400)
-            if todo.completed
-            else None,
-            flex_grow=1,
-        )
+        Text(todo.text, cls=text_cls)
         Button(
             label="x",
             on_click=lambda tid=todo_id: delete_todo(tid),  # type: ignore[misc]
-            style=Style(color=Colors.Red._500),
+            cls="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors",
         )
     return item
 
@@ -132,27 +140,35 @@ async def TodoApp() -> Element:
         load_todos()
         _initialized = True
 
-    with Flex(direction="column", gap=16, padding=20) as app:
-        Text("Flow Todo App", style=Style(font_size="2xl", font_weight="bold"))
+    with Flex(direction="column", cls="min-h-screen bg-gray-50 py-12 px-4") as app:
+        # Centered card container
+        with Flex(
+            direction="column", cls="max-w-md mx-auto bg-white rounded-xl shadow-lg p-6 space-y-6"
+        ):
+            Text("Todo App", cls="text-2xl font-bold text-gray-800")
 
-        # Input row - horizontal flex
-        with Flex(direction="row", gap=8, align="center"):
-            Input(
-                bind=_new_todo_text,
-                placeholder="What needs to be done?",
-                flex_grow=1,
-            )
-            Button(label="Add", on_click=add_todo)
+            # Input row
+            with Flex(direction="row", cls="gap-3"):
+                Input(
+                    bind=_new_todo_text,
+                    placeholder="What needs to be done?",
+                    cls="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent",
+                )
+                Button(
+                    label="Add",
+                    on_click=add_todo,
+                    cls="px-4 py-2 bg-blue-500 text-white font-medium rounded-lg hover:bg-blue-600 transition-colors",
+                )
 
-        # Todo list - vertical flex
-        with Flex(direction="column", gap=4):
-            for todo in _todos.value:
-                await TodoItem(todo)
+            # Todo list
+            with Flex(direction="column", cls="space-y-2"):
+                for todo in _todos.value:
+                    await TodoItem(todo)
 
-        # Stats
-        completed = len([t for t in _todos.value if t.completed])
-        total = len(_todos.value)
-        Text(f"{completed}/{total} completed", style=Style(color=Colors.Slate._500))
+            # Stats
+            completed = len([t for t in _todos.value if t.completed])
+            total = len(_todos.value)
+            Text(f"{completed}/{total} completed", cls="text-sm text-gray-500 text-center")
 
     return app
 
