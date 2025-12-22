@@ -34,10 +34,14 @@ class RenderTreeBuilder:
                 "_wtfui_style": typed_style,
             }
 
+        # Get stable key for reconciliation
+        element_key = getattr(element, "_internal_key", None)
+
         node = RenderNode(
             tag=element.tag,
             element_id=id(element),
             props=props,
+            element_key=element_key,
         )
 
         if hasattr(element, "content") and element.content:
@@ -76,11 +80,15 @@ class RenderTreeBuilder:
                 if k not in ("position", "top", "left", "width", "height")
             }
 
+        # Get stable key for reconciliation
+        element_key = getattr(element, "_internal_key", None)
+
         node = RenderNode(
             tag=element.tag,
             element_id=id(element),
             props=props,
             layout=layout,
+            element_key=element_key,
         )
 
         if hasattr(element, "content") and element.content:

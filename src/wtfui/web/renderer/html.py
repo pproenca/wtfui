@@ -80,6 +80,10 @@ class HTMLRenderer(Renderer):
         attrs_parts: list[str] = []
         attrs_parts.append(f'id="wtfui-{node.element_id}"')
 
+        # Add stable key for reconciliation (doesn't change on re-render)
+        if node.element_key:
+            attrs_parts.append(f'data-key="{node.element_key}"')
+
         style_parts: list[str] = []
         has_flex_props = False
 

@@ -9,21 +9,48 @@ from wtfui.core.context import (
 
 
 class Element:
-    __slots__ = ("_token", "children", "focusable", "parent", "props", "tag")
+    __slots__ = (
+        "_internal_key",
+        "_token",
+        "children",
+        "focusable",
+        "key",
+        "parent",
+        "props",
+        "tag",
+    )
 
     def __init__(self, **props: Any) -> None:
         self.tag = self.__class__.__name__
-        self.children = []
+        self.children: list[Element] = []
         self._token = None
 
         self.focusable = props.pop("focusable", False)
+        self.key: str | None = props.pop("key", None)
 
         self.props = props
 
-        self.parent = get_current_parent()
+        self.parent: Element | None = get_current_parent()
         if self.parent is not None:
             self.parent.children.append(self)
             self.parent.invalidate_layout()
+
+        # Generate stable internal key
+        self._internal_key = self._generate_internal_key()
+
+    def _generate_internal_key(self) -> str:
+        """Generate a stable key based on user key, parent, position, and type."""
+        if self.key is not None:
+            return self.key
+
+        # Build key from parent key + position + element type
+        if self.parent is not None:
+            parent_key = getattr(self.parent, "_internal_key", "mock")
+            position = len(self.parent.children) - 1  # Current position (just appended)
+            return f"{parent_key}:{position}:{self.tag}"
+
+        # Root element without explicit key
+        return f"root:{self.tag}"
 
     def __enter__(self) -> Element:
         self._token = set_current_parent(self)

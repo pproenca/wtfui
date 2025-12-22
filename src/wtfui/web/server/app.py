@@ -37,6 +37,11 @@ socket.onerror = (e) => {
     console.error('[wtfui] WebSocket error:', e);
 };
 
+// Helper to find element by stable data-key attribute
+function findByKey(key) {
+    return document.querySelector(`[data-key="${key}"]`);
+}
+
 // Handle incoming patches from server
 socket.onmessage = (event) => {
     const patch = JSON.parse(event.data);
@@ -47,29 +52,79 @@ socket.onmessage = (event) => {
     const wasInput = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA');
     const selectionStart = wasInput ? activeEl.selectionStart : null;
     const selectionEnd = wasInput ? activeEl.selectionEnd : null;
-    // Use placeholder as stable identifier to find input after re-render
-    const inputSelector = wasInput && activeEl.placeholder
-        ? `input[placeholder="${activeEl.placeholder}"]`
-        : (wasInput ? 'input' : null);
+    // Use data-key as stable identifier (doesn't change on re-render)
+    const activeKey = wasInput ? activeEl.getAttribute('data-key') : null;
 
-    if (patch.op === 'replace') {
-        const el = document.getElementById(patch.target_id);
-        if (el) {
-            el.outerHTML = patch.html;
-        } else {
-            console.warn('[wtfui] Element not found:', patch.target_id);
-        }
-    } else if (patch.op === 'update_root') {
-        const root = document.getElementById('wtfui-root');
-        if (root) {
-            root.innerHTML = patch.html;
-        }
+    switch (patch.op) {
+        case 'update_prop':
+            // Granular property update - no DOM replacement, focus preserved
+            const propEl = findByKey(patch.target_key);
+            if (propEl) {
+                if (patch.value === null) {
+                    propEl.removeAttribute(patch.prop_name);
+                } else if (patch.prop_name === 'value') {
+                    // Don't update value if this is the focused input (user is typing)
+                    if (propEl !== activeEl) {
+                        propEl.value = patch.value;
+                    }
+                } else if (patch.prop_name === 'content') {
+                    propEl.textContent = patch.value;
+                } else if (patch.prop_name === 'class') {
+                    propEl.className = patch.value;
+                } else {
+                    propEl.setAttribute(patch.prop_name, patch.value);
+                }
+            }
+            break;
+
+        case 'create':
+            // Insert new element
+            const parentEl = findByKey(patch.parent_key) || document.getElementById('wtfui-root');
+            if (parentEl && patch.html) {
+                const temp = document.createElement('div');
+                temp.innerHTML = patch.html;
+                const newEl = temp.firstElementChild;
+                if (patch.index >= parentEl.children.length) {
+                    parentEl.appendChild(newEl);
+                } else {
+                    parentEl.insertBefore(newEl, parentEl.children[patch.index]);
+                }
+            }
+            break;
+
+        case 'delete':
+            // Remove element
+            const delEl = findByKey(patch.target_key);
+            if (delEl) {
+                delEl.remove();
+            }
+            break;
+
+        case 'replace':
+            // Replace element entirely (when key/tag changed)
+            const oldEl = findByKey(patch.target_key);
+            if (oldEl && patch.html) {
+                oldEl.outerHTML = patch.html;
+            } else if (patch.target_id) {
+                // Fallback to id-based lookup
+                const el = document.getElementById(patch.target_id);
+                if (el) el.outerHTML = patch.html;
+            }
+            break;
+
+        case 'update_root':
+            // Full re-render (legacy fallback)
+            const root = document.getElementById('wtfui-root');
+            if (root) {
+                root.innerHTML = patch.html;
+            }
+            break;
     }
 
-    // Restore focus using stable selector (element IDs change on re-render)
-    if (inputSelector) {
-        const newInput = document.querySelector(inputSelector);
-        if (newInput) {
+    // Restore focus using stable data-key (doesn't change on re-render)
+    if (activeKey) {
+        const newInput = findByKey(activeKey);
+        if (newInput && newInput !== document.activeElement) {
             newInput.focus();
             // Restore cursor position
             if (selectionStart !== null) {

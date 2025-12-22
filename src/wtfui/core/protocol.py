@@ -17,6 +17,7 @@ class RenderNode:
     label: str | None = None
 
     layout: Any = None
+    element_key: str | None = None  # Stable key for reconciliation
 
 
 class Renderer(ABC):
