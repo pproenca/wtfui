@@ -101,32 +101,52 @@ async def TodoItem(todo: Todo) -> Element:
     # Capture todo.id by value using default argument to avoid closure issues
     todo_id = todo.id
 
+    # Neo-brutalist item styling with thick borders and offset shadows
     item_cls = (
-        "flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+        "group flex items-center gap-4 p-4 bg-zinc-900 border-2 border-zinc-700 w-full "
+        "hover:border-lime-400 hover:translate-x-1 hover:-translate-y-1 "
+        "hover:shadow-[4px_4px_0_0_#a3e635] transition-all duration-150"
     )
     if todo.completed:
-        item_cls += " opacity-60"
+        item_cls += " opacity-50"
 
-    check_cls = "w-8 h-8 flex items-center justify-center rounded-full border-2 transition-colors"
+    # Geometric checkbox with sharp corners
+    check_cls = (
+        "w-7 h-7 flex items-center justify-center border-2 transition-all duration-150 "
+        "text-sm font-black"
+    )
     if todo.completed:
-        check_cls += " bg-green-500 border-green-500 text-white"
+        check_cls += " bg-lime-400 border-lime-400 text-zinc-900"
     else:
-        check_cls += " border-gray-300 text-gray-400 hover:border-green-400"
+        check_cls += " border-zinc-600 text-zinc-600 hover:border-lime-400 hover:text-lime-400"
 
-    text_cls = "flex-1 line-through text-gray-400" if todo.completed else "flex-1 text-gray-700"
+    # Text styling
+    text_cls = "font-medium tracking-wide " + (
+        "line-through text-zinc-600" if todo.completed else "text-zinc-100"
+    )
+
+    # Delete button - appears on hover
+    delete_cls = (
+        "w-7 h-7 flex items-center justify-center border-2 border-transparent "
+        "text-zinc-600 hover:border-red-500 hover:text-red-500 hover:bg-red-500/10 "
+        "transition-all duration-150 font-black text-sm"
+    )
 
     with Flex(direction="row", cls=item_cls) as item:
-        Button(
-            label="✓" if todo.completed else "○",
-            on_click=lambda tid=todo_id: toggle_todo(tid),  # type: ignore[misc]
-            cls=check_cls,
-        )
-        Text(todo.text, cls=text_cls)
-        Button(
-            label="x",
-            on_click=lambda tid=todo_id: delete_todo(tid),  # type: ignore[misc]
-            cls="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors",
-        )
+        with Flex(direction="row", cls="shrink-0"):
+            Button(
+                label="✓" if todo.completed else "",
+                on_click=lambda tid=todo_id: toggle_todo(tid),  # type: ignore[misc]
+                cls=check_cls,
+            )
+        with Flex(direction="row", cls="grow min-w-0 ml-3"):
+            Text(todo.text, cls=text_cls)
+        with Flex(direction="row", cls="shrink-0 ml-auto"):
+            Button(
+                label="x",
+                on_click=lambda tid=todo_id: delete_todo(tid),  # type: ignore[misc]
+                cls=delete_cls,
+            )
     return item
 
 
@@ -140,35 +160,101 @@ async def TodoApp() -> Element:
         load_todos()
         _initialized = True
 
-    with Flex(direction="column", cls="min-h-screen bg-gray-50 py-12 px-4") as app:
-        # Centered card container
+    # Neo-brutalist dark theme with geometric accents
+    with Flex(
+        direction="column",
+        cls=(
+            "min-h-screen bg-zinc-950 py-16 px-4 "
+            "bg-[radial-gradient(circle_at_20%_30%,rgba(163,230,53,0.03)_0%,transparent_50%)]"
+        ),
+    ) as app:
+        # Main container with thick border and offset shadow
         with Flex(
-            direction="column", cls="max-w-md mx-auto bg-white rounded-xl shadow-lg p-6 space-y-6"
+            direction="column",
+            cls=(
+                "max-w-lg mx-auto bg-zinc-900 border-3 border-zinc-700 "
+                "shadow-[8px_8px_0_0_#a3e635] p-8 space-y-8"
+            ),
         ):
-            Text("Todo App", cls="text-2xl font-bold text-gray-800")
+            # Header with bold typography
+            with Flex(direction="column", cls="space-y-2"):
+                with Flex(direction="row"):
+                    Text(
+                        "TASKS",
+                        cls=("text-5xl font-black tracking-tighter text-zinc-100 leading-none"),
+                    )
+                with Flex(direction="row"):
+                    Text(
+                        "Get things done.",
+                        cls="text-zinc-500 text-sm tracking-widest uppercase",
+                    )
 
-            # Input row
-            with Flex(direction="row", cls="gap-3"):
+            # Decorative divider
+            with Flex(direction="row", cls="h-1 w-full"):
+                Flex(direction="row", cls="h-full w-1/3 bg-lime-400")
+                Flex(direction="row", cls="h-full w-2/3 bg-zinc-800")
+
+            # Input section with brutalist styling
+            with Flex(direction="row", cls="gap-0"):
                 Input(
                     bind=_new_todo_text,
                     placeholder="What needs to be done?",
-                    cls="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent",
+                    cls=(
+                        "flex-1 px-4 py-3 bg-zinc-800 border-2 border-zinc-700 "
+                        "text-zinc-100 placeholder-zinc-500 "
+                        "focus:outline-none focus:border-lime-400 transition-colors"
+                    ),
                 )
                 Button(
-                    label="Add",
+                    label="ADD →",
                     on_click=add_todo,
-                    cls="px-4 py-2 bg-blue-500 text-white font-medium rounded-lg hover:bg-blue-600 transition-colors",
+                    cls=(
+                        "px-6 py-3 bg-lime-400 text-zinc-900 font-black text-sm "
+                        "tracking-wider border-2 border-lime-400 "
+                        "hover:bg-lime-300 hover:shadow-[4px_4px_0_0_#3f3f46] "
+                        "hover:translate-x-[-2px] hover:translate-y-[-2px] "
+                        "active:translate-x-0 active:translate-y-0 active:shadow-none "
+                        "transition-all duration-100"
+                    ),
                 )
 
-            # Todo list
-            with Flex(direction="column", cls="space-y-2"):
+            # Todo list with spacing
+            with Flex(direction="column", cls="space-y-3"):
                 for todo in _todos.value:
                     await TodoItem(todo)
 
-            # Stats
+                # Empty state
+                if not _todos.value:
+                    with Flex(
+                        direction="column",
+                        cls="py-12 items-center justify-center space-y-3",
+                    ):
+                        with Flex(direction="row"):
+                            Text("□", cls="text-4xl text-zinc-700")
+                        with Flex(direction="row"):
+                            Text(
+                                "No tasks yet",
+                                cls="text-zinc-600 text-sm tracking-widest uppercase",
+                            )
+
+            # Stats bar
             completed = len([t for t in _todos.value if t.completed])
             total = len(_todos.value)
-            Text(f"{completed}/{total} completed", cls="text-sm text-gray-500 text-center")
+
+            with Flex(
+                direction="row",
+                cls="pt-6 border-t-2 border-zinc-800 items-center justify-between",
+            ):
+                with Flex(direction="row"):
+                    Text(
+                        f"{completed}/{total}",
+                        cls="text-2xl font-black text-lime-400 tabular-nums",
+                    )
+                with Flex(direction="row"):
+                    Text(
+                        "COMPLETED",
+                        cls="text-xs tracking-widest text-zinc-500",
+                    )
 
     return app
 
