@@ -71,14 +71,20 @@ class TestRenderNodeInputBinding:
         assert "value" in node.props
         assert node.props["value"] == "test value"
 
-    def test_input_without_bind_no_value_prop(self):
-        """Input without bind should not have value prop injected."""
+    def test_input_without_bind_has_value_prop(self):
+        """Input without bind should have value prop from text_value property.
+
+        Even unbound Inputs need value rendered so that:
+        1. Server-side updates to _text_value are reflected in HTML
+        2. The displayed value matches the internal state
+        """
         el = Input(placeholder="Enter text")
 
         node = RenderTreeBuilder().build(el)
 
-        # No value prop should be added (bind is None)
-        assert "value" not in node.props
+        # value prop should be added from text_value (empty string for fresh Input)
+        assert "value" in node.props
+        assert node.props["value"] == ""
 
     def test_input_bind_value_updates_on_signal_change(self):
         """Verify bind.value reflects current signal value at render time."""

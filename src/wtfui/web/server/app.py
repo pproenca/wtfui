@@ -220,9 +220,19 @@ def create_app(
                                 bind.value = data.get("value", "")
 
                     case "change":
+                        element = state.registry.get(element_id)
+                        value = data.get("value", "")
+
+                        # Update element's internal text value so re-render shows correct value
+                        if element and hasattr(element, "_text_value"):
+                            # Update internal state (don't use setter to avoid double-calling on_change)
+                            if getattr(element, "bind", None) is not None:
+                                element.bind.value = value
+                            else:
+                                element._text_value = value
+
                         handler = state.registry.get_handler(element_id, "change")
                         if handler:
-                            value = data.get("value", "")
                             if inspect.iscoroutinefunction(handler):
                                 await handler(value)
                             else:

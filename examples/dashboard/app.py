@@ -21,6 +21,7 @@ from wtfui.web.server import create_app
 _sales_data: Signal[list[int]] = Signal([120, 150, 180, 200, 175, 220, 250])
 _user_count: Signal[int] = Signal(1234)
 _conversion_rate: Signal[float] = Signal(3.2)
+_multiplier_input: Signal[str] = Signal("100")
 
 
 # Computed values - automatically update when dependencies change
@@ -188,6 +189,7 @@ async def Dashboard() -> Element:
                             )
                         with Flex(direction="row", gap=16, align="center"):
                             Input(
+                                bind=_multiplier_input,
                                 placeholder="100",
                                 on_change=update_multiplier,
                                 width=120,
