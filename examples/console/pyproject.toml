@@ -4,9 +4,12 @@ version = "0.1.0"
 description = "Console TUI example for WtfUI framework - demonstrates TUI rendering with psutil monitoring"
 requires-python = ">=3.14"
 dependencies = [
-    "wtfui>=0.1.0",
+    "wtfui",
     "psutil>=5.9",
 ]
+
+[tool.uv.sources]
+wtfui = { path = "../..", editable = true }
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0.0", "pytest-asyncio>=0.23.0"]
@@ -20,6 +23,9 @@ export = "run_demo"
 asyncio_mode = "auto"
 testpaths = ["tests"]
 pythonpath = ["."]
+
+[tool.hatch.build.targets.wheel]
+packages = ["."]
 
 [build-system]
 requires = ["hatchling"]

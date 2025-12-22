@@ -100,6 +100,17 @@ def run_tui_mode(app_path: str) -> None:
 
     try:
         component = load_app_component(app_path)
+
+        from fastapi import FastAPI
+
+        if isinstance(component, FastAPI):
+            click.echo(
+                "Error: This app exports a FastAPI instance. Use --web flag to run it:",
+                err=True,
+            )
+            click.echo("  wtfui dev --web", err=True)
+            sys.exit(1)
+
         run_tui(component)
     except FileNotFoundError:
         _handle_app_not_found(app_path)

@@ -3,7 +3,10 @@ name = "wtfui-example-todo"
 version = "0.1.0"
 description = "Todo app example for WtfUI framework - demonstrates Signal reactivity and Effect persistence"
 requires-python = ">=3.14"
-dependencies = ["wtfui>=0.1.0"]
+dependencies = ["wtfui"]
+
+[tool.uv.sources]
+wtfui = { path = "../..", editable = true }
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0.0", "pytest-asyncio>=0.23.0"]
@@ -17,6 +20,9 @@ export = "app"
 asyncio_mode = "auto"
 testpaths = ["tests"]
 pythonpath = ["."]
+
+[tool.hatch.build.targets.wheel]
+packages = ["."]
 
 [build-system]
 requires = ["hatchling"]
