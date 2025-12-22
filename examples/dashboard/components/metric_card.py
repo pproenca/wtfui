@@ -1,11 +1,10 @@
 # examples/dashboard/components/metric_card.py
-"""MetricCard component for displaying key metrics."""
+"""MetricCard component - Art Deco Geometric Luxury theme."""
 
 from typing import overload
 
 from wtfui import Computed, Element, Signal, component
-from wtfui.core.style import Colors, Style
-from wtfui.ui import Box, Flex, Text
+from wtfui.ui import Flex, Text
 
 # Type alias for numeric metric values
 NumericValue = int | float
@@ -50,7 +49,7 @@ async def MetricCard(
     unit: str = "",
     change: float | None = None,
 ) -> Element:
-    """Premium metric card with refined typography and visual hierarchy.
+    """Art Deco luxury metric card with dark glass effect and gold accents.
 
     Args:
         title: Metric name
@@ -60,58 +59,66 @@ async def MetricCard(
     """
     display_value = resolve_metric_value(value)
 
-    with Box(
-        padding=20,
-        width=240,
-        style=Style(
-            bg="white",
-            rounded="lg",
-            shadow="sm",
-            border=True,
-            border_color=Colors.Slate._100,
+    with Flex(
+        direction="column",
+        cls=(
+            "w-60 bg-slate-800/50 backdrop-blur border border-slate-700 "
+            "rounded-lg overflow-hidden "
+            "hover:border-amber-500/50 transition-all duration-300"
         ),
     ) as card:
-        Text(
-            title,
-            style=Style(font_size="sm", color=Colors.Slate._500, font_weight="bold"),
+        # Gold accent bar at top (geometric Art Deco element)
+        Flex(
+            direction="row",
+            cls="h-1 w-full bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600",
         )
 
-        with Flex(direction="row", align="baseline", gap=2):
-            if unit and not unit.endswith("%"):
+        # Card content
+        with Flex(direction="column", cls="p-5 space-y-3"):
+            # Title
+            with Flex(direction="row"):
                 Text(
-                    unit,
-                    style=Style(font_size="xl", color=Colors.Slate._400, font_weight="bold"),
-                )
-            formatted = (
-                f"{display_value:,.0f}" if isinstance(display_value, float) else str(display_value)
-            )
-            Text(
-                formatted,
-                style=Style(font_size="3xl", font_weight="bold", color=Colors.Slate._900),
-            )
-            if unit and unit.endswith("%"):
-                Text(
-                    unit,
-                    style=Style(font_size="xl", color=Colors.Slate._400, font_weight="bold"),
+                    title.upper(),
+                    cls="text-xs font-bold tracking-widest text-amber-500/70",
                 )
 
-        if change is not None:
-            change_color = Colors.Emerald._500 if change >= 0 else Colors.Red._500
-            change_bg = Colors.Emerald._50 if change >= 0 else Colors.Red._50
-            arrow = "^" if change >= 0 else "v"
+            # Value display
+            with Flex(direction="row", cls="items-baseline gap-1"):
+                if unit and not unit.endswith("%"):
+                    with Flex(direction="row"):
+                        Text(unit, cls="text-xl font-bold text-slate-500")
+                formatted = (
+                    f"{display_value:,.0f}"
+                    if isinstance(display_value, float)
+                    else str(display_value)
+                )
+                with Flex(direction="row"):
+                    Text(formatted, cls="text-3xl font-bold text-slate-100 tabular-nums")
+                if unit and unit.endswith("%"):
+                    with Flex(direction="row"):
+                        Text(unit, cls="text-xl font-bold text-slate-500")
 
-            with Box(
-                style=Style(mt=12, pt=12, border_top=True, border_color=Colors.Slate._100),
-            ):
-                with Flex(direction="row", align="center", gap=4):
-                    with Box(style=Style(bg=change_bg, rounded="md", px=6, py=2)):
+            # Change indicator
+            if change is not None:
+                is_positive = change >= 0
+                arrow = "^" if is_positive else "v"
+
+                change_cls = (
+                    "text-emerald-400 bg-emerald-500/10"
+                    if is_positive
+                    else "text-red-400 bg-red-500/10"
+                )
+
+                with Flex(
+                    direction="row",
+                    cls="pt-3 mt-2 border-t border-slate-700/50 items-center gap-3",
+                ):
+                    with Flex(direction="row", cls=f"px-2 py-1 rounded {change_cls}"):
                         Text(
                             f"{arrow} {abs(change):.1f}%",
-                            style=Style(font_size="sm", color=change_color, font_weight="bold"),
+                            cls="text-xs font-bold",
                         )
-                    Text(
-                        "vs last period",
-                        style=Style(font_size="sm", color=Colors.Slate._400),
-                    )
+                    with Flex(direction="row"):
+                        Text("vs last period", cls="text-xs text-slate-500")
 
     return card
