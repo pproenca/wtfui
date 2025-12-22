@@ -1,8 +1,10 @@
 # tests/test_element_render_node.py
-"""Tests for RenderTreeBuilder with Tailwind conflict resolution."""
+"""Tests for RenderTreeBuilder with Tailwind conflict resolution and Input binding."""
 
 from wtfui.core.element import Element
+from wtfui.core.signal import Signal
 from wtfui.tui.builder import RenderTreeBuilder
+from wtfui.ui.elements import Input
 
 
 class TestRenderNodeTailwindConflict:
@@ -48,3 +50,45 @@ class TestRenderNodeTailwindConflict:
         assert "justify-center" not in class_str
         # Non-geometry preserved
         assert "p-4" in class_str
+
+
+class TestRenderNodeInputBinding:
+    """Input elements with bind should render value attribute."""
+
+    def test_input_with_bind_renders_value_attribute(self):
+        """Input bind.value should be extracted and added as value prop.
+
+        Regression test: Without this fix, Input elements with Signal binding
+        would not render the value attribute in HTML, causing the browser to
+        show stale values after re-renders.
+        """
+        bound_signal = Signal("test value")
+        el = Input(bind=bound_signal, placeholder="Enter text")
+
+        node = RenderTreeBuilder().build(el)
+
+        # value prop should be extracted from bind.value
+        assert "value" in node.props
+        assert node.props["value"] == "test value"
+
+    def test_input_without_bind_no_value_prop(self):
+        """Input without bind should not have value prop injected."""
+        el = Input(placeholder="Enter text")
+
+        node = RenderTreeBuilder().build(el)
+
+        # No value prop should be added (bind is None)
+        assert "value" not in node.props
+
+    def test_input_bind_value_updates_on_signal_change(self):
+        """Verify bind.value reflects current signal value at render time."""
+        bound_signal = Signal("initial")
+        el = Input(bind=bound_signal)
+
+        # Change signal value before building
+        bound_signal.value = "updated"
+
+        node = RenderTreeBuilder().build(el)
+
+        # Should reflect current signal value
+        assert node.props["value"] == "updated"

@@ -49,6 +49,10 @@ class RenderTreeBuilder:
         if hasattr(element, "label") and element.label:
             node.label = str(element.label)
 
+        # Extract bind.value for Input elements to render as value attribute
+        if hasattr(element, "bind") and element.bind is not None:
+            node.props["value"] = element.bind.value
+
         node.children = [self.build(child) for child in element.children]
 
         return node
@@ -83,6 +87,10 @@ class RenderTreeBuilder:
 
         if hasattr(element, "label") and element.label:
             node.label = str(element.label)
+
+        # Extract bind.value for Input elements to render as value attribute
+        if hasattr(element, "bind") and element.bind is not None:
+            node.props["value"] = element.bind.value
 
         for i, child in enumerate(element.children):
             if i < len(layout_node.children):

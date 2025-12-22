@@ -25,28 +25,28 @@ let connected = false;
 
 socket.onopen = () => {
     connected = true;
-    console.log('[Fuse] WebSocket connected');
+    console.log('[wtfui] WebSocket connected');
 };
 
 socket.onclose = () => {
     connected = false;
-    console.log('[Fuse] WebSocket disconnected');
+    console.log('[wtfui] WebSocket disconnected');
 };
 
 socket.onerror = (e) => {
-    console.error('[Fuse] WebSocket error:', e);
+    console.error('[wtfui] WebSocket error:', e);
 };
 
 // Handle incoming patches from server
 socket.onmessage = (event) => {
     const patch = JSON.parse(event.data);
-    console.log('[Fuse] Received patch:', patch);
+    console.log('[wtfui] Received patch:', patch);
     if (patch.op === 'replace') {
         const el = document.getElementById(patch.target_id);
         if (el) {
             el.outerHTML = patch.html;
         } else {
-            console.warn('[Fuse] Element not found:', patch.target_id);
+            console.warn('[wtfui] Element not found:', patch.target_id);
         }
     } else if (patch.op === 'update_root') {
         const root = document.getElementById('wtfui-root');
@@ -58,10 +58,10 @@ socket.onmessage = (event) => {
 
 // Event delegation - handle clicks
 document.addEventListener('click', (e) => {
-    // Find the closest element with a fuse ID
+    // Find the closest element with a wtfui ID
     const target = e.target.closest('[id^="wtfui-"]');
     if (target && connected) {
-        console.log('[Fuse] Click on:', target.id);
+        console.log('[wtfui] Click on:', target.id);
         socket.send(JSON.stringify({
             type: 'click',
             target_id: target.id
@@ -73,7 +73,7 @@ document.addEventListener('click', (e) => {
 document.addEventListener('input', (e) => {
     const target = e.target.closest('[id^="wtfui-"]');
     if (target && connected) {
-        console.log('[Fuse] Input on:', target.id, 'value:', target.value);
+        console.log('[wtfui] Input on:', target.id, 'value:', target.value);
         socket.send(JSON.stringify({
             type: 'input',
             target_id: target.id,
@@ -86,7 +86,7 @@ document.addEventListener('input', (e) => {
 document.addEventListener('change', (e) => {
     const target = e.target.closest('[id^="wtfui-"]');
     if (target && connected) {
-        console.log('[Fuse] Change on:', target.id, 'value:', target.value);
+        console.log('[wtfui] Change on:', target.id, 'value:', target.value);
         socket.send(JSON.stringify({
             type: 'change',
             target_id: target.id,
@@ -112,7 +112,7 @@ document.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
         const target = e.target.closest('input[id^="wtfui-"]');
         if (target && connected) {
-            console.log('[Fuse] Enter key on:', target.id);
+            console.log('[wtfui] Enter key on:', target.id);
             socket.send(JSON.stringify({
                 type: 'enter',
                 target_id: target.id,
@@ -137,7 +137,7 @@ def create_app(
     root_component: Any,
     renderer: Renderer | None = None,
 ) -> FastAPI:
-    app = FastAPI(title="Fuse App")
+    app = FastAPI(title="WtfUI App")
     state = AppState()
     state.root_component = root_component
     state.renderer = renderer or HTMLRenderer()
@@ -170,7 +170,7 @@ def create_app(
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fuse App</title>
+    <title>WtfUI App</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body>

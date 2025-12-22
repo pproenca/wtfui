@@ -61,26 +61,43 @@ def update_multiplier(value: str) -> None:
 
 @component
 async def Header() -> Element:
-    """Dashboard header with explicit flex styling."""
+    """Premium header with refined typography and subtle elevation."""
     with Flex(
         direction="row",
         justify="space-between",
         align="center",
-        padding=16,
-        height=64,
-        style=Style(bg="white", border_bottom=True, border_color=Colors.Slate._200),
+        padding=24,
+        height=72,
+        style=Style(
+            bg="white",
+            border_bottom=True,
+            border_color=Colors.Slate._100,
+            shadow="sm",
+        ),
     ) as header:
+        # Brand area with icon
+        with Flex(direction="row", align="center", gap=12):
+            with Box(
+                width=32,
+                height=32,
+                style=Style(bg=Colors.Blue._600, rounded="md"),
+            ):
+                Text("W", style=Style(color="white", font_weight="bold"))
+            Text(
+                "Flow",
+                style=Style(font_size="xl", font_weight="bold", color=Colors.Slate._900),
+            )
+        # Current page indicator
         Text(
-            "Flow Dashboard",
-            style=Style(font_size="xl", font_weight="bold", color=Colors.Slate._800),
+            _selected_page.value,
+            style=Style(font_size="sm", color=Colors.Slate._600, font_weight="bold"),
         )
-        Text(f"Page: {_selected_page.value}", style=Style(color=Colors.Slate._500))
     return header
 
 
 @component
 async def Dashboard() -> Element:
-    """Main dashboard with modern Flex layout."""
+    """Premium dashboard with modern layout and refined styling."""
     with Flex(direction="column", height="100vh") as app:
         # Header - fixed height
         await Header()
@@ -90,54 +107,102 @@ async def Dashboard() -> Element:
             # Sidebar - fixed width
             await Sidebar(items=_NAV_ITEMS, selected=_selected_page)
 
-            # Main content - fills remaining width
+            # Main content - pure white background with generous spacing
             with Flex(
                 direction="column",
                 flex_grow=1,
-                padding=24,
-                gap=24,
-                style=Style(bg=Colors.Slate._50),
+                padding=32,
+                gap=32,
+                style=Style(bg="white"),
             ):
-                # Metrics row - responsive wrap
-                with Flex(direction="row", gap=16, wrap="wrap"):
-                    await MetricCard(
-                        title="Total Sales",
-                        value=_total_sales,
-                        unit="$",
-                        change=_sales_trend(),
+                # Page title section
+                with Box():
+                    Text(
+                        _selected_page.value,
+                        style=Style(
+                            font_size="2xl",
+                            font_weight="bold",
+                            color=Colors.Slate._900,
+                        ),
                     )
-                    await MetricCard(
-                        title="Average Sale",
-                        value=_average_sales,
-                        unit="$",
-                    )
-                    await MetricCard(
-                        title="Active Users",
-                        value=_user_count,
-                    )
-                    await MetricCard(
-                        title="Conversion",
-                        value=_conversion_rate,
-                        unit="%",
+                    Text(
+                        "Monitor your key metrics and performance indicators",
+                        style=Style(font_size="sm", color=Colors.Slate._500),
                     )
 
-                # Interactive section with Box container
-                with Box(
-                    padding=16,
-                    style=Style(bg="white", rounded="lg", shadow="sm"),
-                ):
-                    with Flex(direction="column", gap=8):
-                        Text(
-                            "Adjust Sales Multiplier",
-                            style=Style(font_weight="bold", color=Colors.Slate._700),
+                # Metrics section
+                with Box():
+                    Text(
+                        "Key Metrics",
+                        style=Style(
+                            font_size="sm",
+                            font_weight="bold",
+                            color=Colors.Slate._500,
+                        ),
+                    )
+                    with Flex(direction="row", gap=20, wrap="wrap"):
+                        await MetricCard(
+                            title="Total Sales",
+                            value=_total_sales,
+                            unit="$",
+                            change=_sales_trend(),
                         )
+                        await MetricCard(
+                            title="Average Sale",
+                            value=_average_sales,
+                            unit="$",
+                        )
+                        await MetricCard(
+                            title="Active Users",
+                            value=_user_count,
+                        )
+                        await MetricCard(
+                            title="Conversion",
+                            value=_conversion_rate,
+                            unit="%",
+                        )
+
+                # Interactive section with refined styling
+                with Box(
+                    padding=24,
+                    style=Style(
+                        bg=Colors.Slate._50,
+                        rounded="lg",
+                        border=True,
+                        border_color=Colors.Slate._200,
+                    ),
+                ):
+                    with Flex(direction="column", gap=16):
+                        with Box():
+                            Text(
+                                "Adjust Sales Multiplier",
+                                style=Style(
+                                    font_size="lg",
+                                    font_weight="bold",
+                                    color=Colors.Slate._900,
+                                ),
+                            )
+                            Text(
+                                "Modify the baseline sales data to simulate different scenarios",
+                                style=Style(font_size="sm", color=Colors.Slate._500),
+                            )
                         with Flex(direction="row", gap=16, align="center"):
                             Input(
                                 placeholder="100",
                                 on_change=update_multiplier,
-                                width=100,
+                                width=120,
+                                style=Style(
+                                    border=True,
+                                    border_color=Colors.Slate._300,
+                                    rounded="md",
+                                    px=12,
+                                    py=8,
+                                ),
                             )
-                            Text("% of baseline", style=Style(color=Colors.Slate._500))
+                            Text(
+                                "% of baseline",
+                                style=Style(color=Colors.Slate._500, font_size="sm"),
+                            )
 
     return app
 

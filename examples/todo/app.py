@@ -41,6 +41,9 @@ _storage = LocalStorage()
 # Validation constants
 _MAX_TODO_LENGTH = 500
 
+# Initialization state (prevents load_todos from overwriting in-memory state on re-render)
+_initialized: bool = False
+
 
 def load_todos() -> None:
     """Load todos from storage."""
@@ -122,8 +125,12 @@ async def TodoItem(todo: Todo) -> Element:
 @component
 async def TodoApp() -> Element:
     """Main todo application component."""
-    # Load persisted todos on mount
-    load_todos()
+    # Load persisted todos only on initial render (not re-renders)
+    # This prevents race condition with async save_todos Effect
+    global _initialized
+    if not _initialized:
+        load_todos()
+        _initialized = True
 
     with Flex(direction="column", gap=16, padding=20) as app:
         Text("Flow Todo App", style=Style(font_size="2xl", font_weight="bold"))

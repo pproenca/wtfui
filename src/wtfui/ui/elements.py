@@ -157,7 +157,7 @@ class Window(Element):
 
     def __init__(
         self,
-        title: str = "Fuse App",
+        title: str = "WtfUI App",
         theme: str = "light",
         **props: Any,
     ) -> None:

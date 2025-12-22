@@ -26,34 +26,54 @@ async def Sidebar(
     items: list[str],
     selected: Signal[str],
 ) -> Element:
-    """Navigation sidebar with selectable items.
+    """Modern navigation sidebar with refined styling.
 
     Args:
         items: List of navigation item labels
         selected: Signal tracking currently selected item
     """
     with Box(
-        width=200,
-        style=Style(bg=Colors.Slate._800, color="white"),
+        width=240,
+        style=Style(
+            bg=Colors.Slate._900,
+            color="white",
+            border_right=True,
+            border_color=Colors.Slate._800,
+        ),
     ) as sidebar:
         with Flex(direction="column", gap=0):
-            with Box(padding=16):
-                Text("Dashboard", style=Style(font_size="xl", font_weight="bold"))
+            # Brand section
+            with Box(
+                padding=20,
+                style=Style(border_bottom=True, border_color=Colors.Slate._800),
+            ):
+                Text("Dashboard", style=Style(font_size="lg", font_weight="bold"))
 
-            for item in items:
-                is_active = selected.value == item
-                # Note: hover states not supported in Style, using conditional bg
-                button_style = Style(
-                    w_full=True,
-                    text_align="left",
-                    px=4,
-                    py=2,
-                    bg=Colors.Slate._700 if is_active else None,
+            # Navigation section
+            with Box(padding=12):
+                Text(
+                    "NAVIGATION",
+                    style=Style(font_size="sm", color=Colors.Slate._500, font_weight="bold"),
                 )
-                Button(
-                    label=item,
-                    on_click=_make_click_handler(selected, item),
-                    style=button_style,
-                )
+                with Flex(direction="column", gap=4):
+                    for item in items:
+                        is_active = selected.value == item
+                        button_style = Style(
+                            w_full=True,
+                            text_align="left",
+                            px=12,
+                            py=10,
+                            rounded="md",
+                            bg=Colors.Slate._800 if is_active else None,
+                            color="white" if is_active else Colors.Slate._400,
+                            font_weight="bold" if is_active else None,
+                            border_left=is_active,
+                            border_color=Colors.Blue._500 if is_active else None,
+                        )
+                        Button(
+                            label=item,
+                            on_click=_make_click_handler(selected, item),
+                            style=button_style,
+                        )
 
     return sidebar
