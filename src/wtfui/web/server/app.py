@@ -2,6 +2,8 @@ import inspect
 import json
 import logging
 import threading
+import uuid
+from contextvars import ContextVar
 from typing import TYPE_CHECKING, Any
 
 from fastapi import FastAPI, HTTPException, Request, WebSocket
@@ -16,6 +18,9 @@ from wtfui.web.rpc import RpcRegistry
 from wtfui.web.rpc.encoder import wtfui_json_dumps
 
 logger = logging.getLogger(__name__)
+
+# Context variable for current session (React 19-style per-client isolation)
+_current_session: ContextVar[SessionState | None] = ContextVar("current_session", default=None)
 
 CLIENT_JS = """
 const socket = new WebSocket(`ws://${location.host}/ws`);
@@ -206,6 +211,74 @@ document.addEventListener('keydown', (e) => {
 """
 
 
+class SessionState:
+    """Per-connection session state (React 19-style client isolation).
+
+    Each WebSocket connection gets its own SessionState with isolated:
+    - Signal values (via signal_values dict)
+    - Element registry (handlers)
+    - Root element tree
+    - WebSocket connection (for broadcast)
+    """
+
+    def __init__(self, session_id: str | None = None) -> None:
+        self.session_id = session_id or str(uuid.uuid4())
+        self.signal_values: dict[str, Any] = {}  # Signal name -> value
+        self.registry: ElementRegistry = ElementRegistry()
+        self.root_element: Any = None
+        self.websocket: WebSocket | None = None  # For broadcast
+        self._render_lock = threading.Lock()
+
+    def get_signal(self, name: str, default: Any = None) -> Any:
+        """Get a signal value for this session."""
+        return self.signal_values.get(name, default)
+
+    def set_signal(self, name: str, value: Any) -> None:
+        """Set a signal value for this session."""
+        self.signal_values[name] = value
+
+
+def get_current_session() -> SessionState | None:
+    """Get the current session from context (React 19-style)."""
+    return _current_session.get()
+
+
+def set_current_session(session: SessionState | None) -> None:
+    """Set the current session in context."""
+    _current_session.set(session)
+
+
+class SessionManager:
+    """Manages per-connection sessions (React 19-style)."""
+
+    def __init__(self) -> None:
+        self._sessions: dict[str, SessionState] = {}
+        self._lock = threading.Lock()
+
+    def create_session(self, websocket: WebSocket | None = None) -> SessionState:
+        """Create a new session."""
+        session = SessionState()
+        session.websocket = websocket
+        with self._lock:
+            self._sessions[session.session_id] = session
+        return session
+
+    def get_session(self, session_id: str) -> SessionState | None:
+        """Get a session by ID."""
+        with self._lock:
+            return self._sessions.get(session_id)
+
+    def get_all_sessions(self) -> list[SessionState]:
+        """Get all active sessions (for broadcast)."""
+        with self._lock:
+            return list(self._sessions.values())
+
+    def remove_session(self, session_id: str) -> None:
+        """Remove a session."""
+        with self._lock:
+            self._sessions.pop(session_id, None)
+
+
 class AppState:
     def __init__(self) -> None:
         self.root_component: Any = None
@@ -213,6 +286,7 @@ class AppState:
         self.registry: ElementRegistry = ElementRegistry()
         self.renderer = HTMLRenderer()
         self._render_lock = threading.Lock()
+        self.session_manager = SessionManager()
 
 
 def create_app(
@@ -267,7 +341,52 @@ def create_app(
     async def websocket_endpoint(websocket: WebSocket) -> None:
         await websocket.accept()
 
+        # React 19-style: Create isolated session for this WebSocket connection
+        session = state.session_manager.create_session(websocket=websocket)
+        logger.debug(f"Created session {session.session_id} for WebSocket connection")
+
+        async def _session_render() -> Any:
+            """Render root with session-specific state."""
+            with session._render_lock:
+                session.registry.clear()
+                # Set current session context before rendering
+                set_current_session(session)
+                try:
+                    session.root_element = await state.root_component()
+                    session.registry.register_tree(session.root_element)
+                finally:
+                    set_current_session(None)
+                return session.root_element
+
+        async def _broadcast_to_others() -> None:
+            """Broadcast update to all other connected sessions (real-time updates)."""
+            for other_session in state.session_manager.get_all_sessions():
+                if other_session.session_id == session.session_id:
+                    continue  # Don't send to self
+                if other_session.websocket is None:
+                    continue
+
+                try:
+                    # Re-render for other session's context
+                    set_current_session(other_session)
+                    try:
+                        other_session.registry.clear()
+                        other_session.root_element = await state.root_component()
+                        other_session.registry.register_tree(other_session.root_element)
+                        html = state.renderer.render(other_session.root_element)
+                    finally:
+                        set_current_session(None)
+
+                    await other_session.websocket.send_json({"op": "update_root", "html": html})
+                except Exception:
+                    logger.debug(f"Failed to broadcast to session {other_session.session_id}")
+
         try:
+            # Initial render for this session
+            root = await _session_render()
+            html = state.renderer.render(root)
+            await websocket.send_json({"op": "update_root", "html": html})
+
             while True:
                 data = await websocket.receive_json()
                 event_type = data.get("type", "")
@@ -281,69 +400,91 @@ def create_app(
                 except ValueError:
                     continue
 
-                match event_type:
-                    case "click":
-                        handler = state.registry.get_handler(element_id, "click")
-                        if handler:
-                            if inspect.iscoroutinefunction(handler):
-                                await handler()
-                            else:
-                                handler()
+                # Set session context for handler execution
+                set_current_session(session)
+                try:
+                    match event_type:
+                        case "click":
+                            handler = session.registry.get_handler(element_id, "click")
+                            if handler:
+                                if inspect.iscoroutinefunction(handler):
+                                    await handler()
+                                else:
+                                    handler()
 
-                            root = await _re_render_root()
-                            html = state.renderer.render(root)
-                            await websocket.send_json({"op": "update_root", "html": html})
+                                root = await _session_render()
+                                html = state.renderer.render(root)
+                                await websocket.send_json({"op": "update_root", "html": html})
 
-                    case "input":
-                        # Live updates on every keystroke (same as "change" but for real-time)
-                        element = state.registry.get(element_id)
-                        value = data.get("value", "")
+                                # Broadcast to other clients for real-time updates
+                                await _broadcast_to_others()
 
-                        if element:
-                            bind = getattr(element, "bind", None)
-                            if bind is not None:
-                                bind.value = value
+                        case "input":
+                            # Live updates on every keystroke
+                            element = session.registry.get(element_id)
+                            value = data.get("value", "")
 
-                        # Call on_change handler and re-render for live reactivity
-                        handler = state.registry.get_handler(element_id, "change")
-                        if handler:
-                            if inspect.iscoroutinefunction(handler):
-                                await handler(value)
-                            else:
-                                handler(value)
+                            if element:
+                                bind = getattr(element, "bind", None)
+                                if bind is not None:
+                                    bind.value = value
 
-                            root = await _re_render_root()
-                            html = state.renderer.render(root)
-                            await websocket.send_json({"op": "update_root", "html": html})
+                            handler = session.registry.get_handler(element_id, "change")
+                            if handler:
+                                if inspect.iscoroutinefunction(handler):
+                                    await handler(value)
+                                else:
+                                    handler(value)
 
-                    case "change":
-                        element = state.registry.get(element_id)
-                        value = data.get("value", "")
+                                root = await _session_render()
+                                html = state.renderer.render(root)
+                                await websocket.send_json({"op": "update_root", "html": html})
 
-                        # Update element's internal text value so re-render shows correct value
-                        if element and hasattr(element, "_text_value"):
-                            # Update internal state (don't use setter to avoid double-calling on_change)
-                            if getattr(element, "bind", None) is not None:
-                                element.bind.value = value
-                            else:
-                                element._text_value = value
+                        case "change":
+                            element = session.registry.get(element_id)
+                            value = data.get("value", "")
 
-                        handler = state.registry.get_handler(element_id, "change")
-                        if handler:
-                            if inspect.iscoroutinefunction(handler):
-                                await handler(value)
-                            else:
-                                handler(value)
+                            if element and hasattr(element, "_text_value"):
+                                if getattr(element, "bind", None) is not None:
+                                    element.bind.value = value
+                                else:
+                                    element._text_value = value
 
-                            root = await _re_render_root()
-                            html = state.renderer.render(root)
-                            await websocket.send_json({"op": "update_root", "html": html})
+                            handler = session.registry.get_handler(element_id, "change")
+                            if handler:
+                                if inspect.iscoroutinefunction(handler):
+                                    await handler(value)
+                                else:
+                                    handler(value)
 
-                    case "enter":
-                        pass
+                                root = await _session_render()
+                                html = state.renderer.render(root)
+                                await websocket.send_json({"op": "update_root", "html": html})
+
+                        case "enter":
+                            # Handle Enter key in input fields
+                            handler = session.registry.get_handler(element_id, "enter")
+                            if handler:
+                                if inspect.iscoroutinefunction(handler):
+                                    await handler()
+                                else:
+                                    handler()
+
+                                root = await _session_render()
+                                html = state.renderer.render(root)
+                                await websocket.send_json({"op": "update_root", "html": html})
+
+                                # Broadcast to other clients for real-time updates
+                                await _broadcast_to_others()
+                finally:
+                    set_current_session(None)
 
         except Exception:
             logger.debug("WebSocket connection closed", exc_info=True)
+        finally:
+            # Cleanup session on disconnect
+            state.session_manager.remove_session(session.session_id)
+            logger.debug(f"Removed session {session.session_id}")
 
     @app.post("/api/rpc/{func_name}")
     async def rpc_handler(func_name: str, request: Request) -> JSONResponse:

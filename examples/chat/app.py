@@ -6,6 +6,7 @@ This example showcases:
 - Client-server type safety via annotations
 - WebSocket for real-time updates
 - Async component patterns
+- SessionSignal for per-user state (React 19-style isolation)
 
 Run with: cd examples/chat && uv run wtfui dev --web
 """
@@ -13,16 +14,18 @@ Run with: cd examples/chat && uv run wtfui dev --web
 from components import ChatBubble
 
 from server import Message, get_history, send_message
-from wtfui import Element, Signal, component
+from wtfui import Element, SessionSignal, Signal, component
 from wtfui.core.style import Colors, Style
 from wtfui.ui import Box, Button, Flex, Input, Text
 from wtfui.web.server import create_app
 
-# Client state (module-level, prefixed with underscore per naming standard)
+# Shared state - all users see the same messages (correct for chat)
 _messages: Signal[list[Message]] = Signal([])
-_input_text: Signal[str] = Signal("")
-_username: Signal[str] = Signal("")
-_is_logged_in: Signal[bool] = Signal(False)
+
+# Per-user state (React 19-style: each session has isolated values)
+_input_text: SessionSignal[str] = SessionSignal("", name="input_text")
+_username: SessionSignal[str] = SessionSignal("", name="username")
+_is_logged_in: SessionSignal[bool] = SessionSignal(False, name="is_logged_in")
 
 
 async def load_messages() -> None:
@@ -115,6 +118,7 @@ async def ChatScreen() -> Element:
                     bind=_input_text,
                     placeholder="Type a message...",
                     flex_grow=1,
+                    on_enter=handle_send,  # Send on Enter key
                 )
                 Button(
                     label="Send",

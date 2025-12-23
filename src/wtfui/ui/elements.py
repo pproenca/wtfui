@@ -107,6 +107,7 @@ class Input(Element):
         placeholder: str = "",
         on_change: Callable[[str], Any] | None = None,
         on_input: Callable[[str], Any] | None = None,
+        on_enter: Callable[[], Any] | None = None,
         **props: Any,
     ) -> None:
         props.setdefault("focusable", True)
@@ -114,7 +115,7 @@ class Input(Element):
         props["on_keydown"] = self.handle_keydown
         # Wrap on_input to update text_value first, then call user's handler
         props["on_input"] = self._make_input_handler(on_input)
-        super().__init__(placeholder=placeholder, on_change=on_change, **props)
+        super().__init__(placeholder=placeholder, on_change=on_change, on_enter=on_enter, **props)
         self.bind = bind
 
         self._text_value = bind.value if bind is not None else ""

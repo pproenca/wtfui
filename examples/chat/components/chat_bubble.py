@@ -1,12 +1,11 @@
 # examples/chat/components/chat_bubble.py
 """ChatBubble component for displaying messages."""
 
+from server import Message  # noqa: TC001 - needed at runtime for @component
 from wtfui import Element, component
 from wtfui.core.style import Colors, Style
 from wtfui.ui import Box, Flex, Text
 from wtfui.ui.layout import JustifyLiteral  # noqa: TC001 - needed at runtime for @component
-
-from ..server.rpc import Message  # noqa: TC001 - needed at runtime for @component
 
 
 @component
